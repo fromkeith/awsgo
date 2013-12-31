@@ -38,14 +38,14 @@ import (
 )
 
 type DeleteMessageRequest struct {
-    aws.RequestBuilder
+    awsgo.RequestBuilder
 
     ReceiptHandle string
     TaskQueue string
 }
 
 type DeleteMessageResponse struct {
-    ResponseMetadata aws.ResponseMetaData
+    ResponseMetadata awsgo.ResponseMetaData
 }
 
 
@@ -87,7 +87,7 @@ func (gir * DeleteMessageRequest) VerifyInput() (error) {
 }
 
 func (gir DeleteMessageRequest) DeMarshalGetItemResponse(response []byte, headers map[string]string) (interface{}) {
-    if err := aws.CheckForErrorXml(response); err != nil {
+    if err := awsgo.CheckForErrorXml(response); err != nil {
         return err
     }
     giResponse := new(DeleteMessageResponse)
@@ -100,12 +100,12 @@ func (gir DeleteMessageRequest) DeMarshalGetItemResponse(response []byte, header
 }
 
 func (gir DeleteMessageRequest) Request() (*DeleteMessageResponse, error) {    
-    request, err := aws.BuildEmptyContentRequest(&gir)
+    request, err := awsgo.BuildEmptyContentRequest(&gir)
     if err != nil {
         return nil, err
     }
-    request.RequestSigningType = aws.RequestSigningType_AWS4
-    resp, err := aws.DoRequest(&gir, request)
+    request.RequestSigningType = awsgo.RequestSigningType_AWS4
+    resp, err := awsgo.DoRequest(&gir, request)
     if resp == nil {
         return nil, err
     }

@@ -48,7 +48,7 @@ type AttributeUpdates struct {
 
 // http://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_UpdateItem.html
 type UpdateItemRequest struct {
-    aws.RequestBuilder
+    awsgo.RequestBuilder
 
     Expected                map[string]ExpectedItem  `json:",omitempty"`
     UpdateKey               map[string]interface{}  `json:"Key"`
@@ -120,7 +120,7 @@ func (pir * UpdateItemRequest) VerifyInput() (error) {
     return pir.RequestBuilder.VerifyInput()
 }
 func (pir UpdateItemRequest) CoRequest() (*UpdateItemResponseFuture, error) {
-    request, err := aws.BuildRequest(&pir, pir)
+    request, err := awsgo.BuildRequest(&pir, pir)
     if err != nil {
         return nil, err
     }
@@ -142,15 +142,15 @@ func (pir UpdateItemRequest) DeMarshalGetItemResponse(response []byte, headers m
     }
     if len(piResponse.RawBeforeAttributes) > 0 {
         piResponse.BeforeAttributes = make(map[string]interface{})
-        aws.FromRawMapToAwsItemMap(piResponse.RawBeforeAttributes, piResponse.BeforeAttributes)
+        awsgo.FromRawMapToAwsItemMap(piResponse.RawBeforeAttributes, piResponse.BeforeAttributes)
     }
     return piResponse
 }
 
 
-func (pir UpdateItemRequest) CoDoRequest(request aws.AwsRequest, future * UpdateItemResponseFuture) {
-    request.RequestSigningType = aws.RequestSigningType_AWS4
-    resp, err := aws.DoRequest(&pir, request)
+func (pir UpdateItemRequest) CoDoRequest(request awsgo.AwsRequest, future * UpdateItemResponseFuture) {
+    request.RequestSigningType = awsgo.RequestSigningType_AWS4
+    resp, err := awsgo.DoRequest(&pir, request)
     if err != nil {
         future.errResponse <- err
     } else {
@@ -161,12 +161,12 @@ func (pir UpdateItemRequest) CoDoRequest(request aws.AwsRequest, future * Update
 }
 
 func (pir UpdateItemRequest) Request() (*UpdateItemResponse, error) {   
-    request, err := aws.BuildRequest(&pir, pir)
+    request, err := awsgo.BuildRequest(&pir, pir)
     if err != nil {
         return nil, err
     }
-    request.RequestSigningType = aws.RequestSigningType_AWS4
-    resp, err := aws.DoRequest(&pir, request)
+    request.RequestSigningType = awsgo.RequestSigningType_AWS4
+    resp, err := awsgo.DoRequest(&pir, request)
     if resp == nil {
         return nil, err
     }

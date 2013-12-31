@@ -47,7 +47,7 @@ const (
 
 
 type ReceiveMessageRequest struct {
-    aws.RequestBuilder
+    awsgo.RequestBuilder
 
     AttributeName string
     MaxNumberOfMessages int
@@ -73,7 +73,7 @@ type ReceiveMessageResult struct {
 }
 type ReceiveMessageResponse struct {
     ReceiveMessageResult ReceiveMessageResult
-    ResponseMetadata aws.ResponseMetaData
+    ResponseMetadata awsgo.ResponseMetaData
 }
 
 
@@ -135,7 +135,7 @@ func (gir * ReceiveMessageRequest) VerifyInput() (error) {
 }
 
 func (gir ReceiveMessageRequest) DeMarshalGetItemResponse(response []byte, headers map[string]string) (interface{}) {
-    if err := aws.CheckForErrorXml(response); err != nil {
+    if err := awsgo.CheckForErrorXml(response); err != nil {
         return err
     }
     giResponse := new(ReceiveMessageResponse)
@@ -147,12 +147,12 @@ func (gir ReceiveMessageRequest) DeMarshalGetItemResponse(response []byte, heade
 }
 
 func (gir ReceiveMessageRequest) Request() (*ReceiveMessageResponse, error) {    
-    request, err := aws.BuildEmptyContentRequest(&gir)
+    request, err := awsgo.BuildEmptyContentRequest(&gir)
     if err != nil {
         return nil, err
     }
-    request.RequestSigningType = aws.RequestSigningType_AWS4
-    resp, err := aws.DoRequest(&gir, request)
+    request.RequestSigningType = awsgo.RequestSigningType_AWS4
+    resp, err := awsgo.DoRequest(&gir, request)
     if resp == nil {
         return nil, err
     }

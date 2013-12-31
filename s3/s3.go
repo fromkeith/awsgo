@@ -39,7 +39,7 @@ import (
 
 
 type PutObjectRequest struct {
-    aws.RequestBuilder
+    awsgo.RequestBuilder
 
     Source io.ReadCloser
     Length int64
@@ -110,7 +110,7 @@ func (por * PutObjectRequest) VerifyInput() (error) {
 
 
 func (por PutObjectRequest) CoRequest() (*PutObjectResponseFuture, error) {
-    request, err := aws.BuildRequest(&por, por.Source)
+    request, err := awsgo.BuildRequest(&por, por.Source)
     if err != nil {
         return nil, err
     }
@@ -121,9 +121,9 @@ func (por PutObjectRequest) CoRequest() (*PutObjectResponseFuture, error) {
     return future, nil
 }
 
-func (por PutObjectRequest) CoDoRequest(request aws.AwsRequest, future * PutObjectResponseFuture) {
-    request.RequestSigningType = aws.RequestSigningType_REST
-    resp, err := aws.DoRequest(&por, request)
+func (por PutObjectRequest) CoDoRequest(request awsgo.AwsRequest, future * PutObjectResponseFuture) {
+    request.RequestSigningType = awsgo.RequestSigningType_REST
+    resp, err := awsgo.DoRequest(&por, request)
     if err != nil {
         future.errResponse <- err
     } else {
@@ -134,12 +134,12 @@ func (por PutObjectRequest) CoDoRequest(request aws.AwsRequest, future * PutObje
 }
 
 func (por PutObjectRequest) Request() (*PutObjectResponse, error) {
-    request, err := aws.BuildReaderRequest(&por, por.Source)
+    request, err := awsgo.BuildReaderRequest(&por, por.Source)
     if err != nil {
         return nil, err
     }
-    request.RequestSigningType = aws.RequestSigningType_REST
-    resp, err := aws.DoRequest(&por, request)
+    request.RequestSigningType = awsgo.RequestSigningType_REST
+    resp, err := awsgo.DoRequest(&por, request)
     if resp == nil {
         return nil, err
     }

@@ -45,13 +45,13 @@ import (
 
 func TestGetItem() {
     itemRequest := dynamo.NewGetItemRequest()
-    itemRequest.Search["Game"] = aws.NewStringItem("e5dd6f4d-5c80-4069-817e-646372bf5f74")
+    itemRequest.Search["Game"] = awsgo.NewStringItem("e5dd6f4d-5c80-4069-817e-646372bf5f74")
     itemRequest.TableName = "test.table"
     itemRequest.AttributesToGet = []string{"GameName"}
 
     itemRequest.Host.Region = "us-west-2"
     itemRequest.Host.Domain = "amazonaws.com"
-    itemRequest.Key.Key, itemRequest.Key.SecretKey, _ = aws.GetSecurityKeys()
+    itemRequest.Key.Key, itemRequest.Key.SecretKey, _ = awsgo.GetSecurityKeys()
 
     //resp, _ := itemRequest.Request()
     fu, futureError := itemRequest.CoRequest()
@@ -66,7 +66,7 @@ func TestGetItem() {
     }
     itemCast := resp.Item["GameName"]
     switch itemCast := itemCast.(type) {
-    case aws.AwsStringItem:
+    case awsgo.AwsStringItem:
         fmt.Println(itemCast.Value)
     case string:
         fmt.Println("isstring")
@@ -77,14 +77,14 @@ func TestGetItem() {
 
 func TestUpdateItem() {
     itemRequest := dynamo.NewUpdateItemRequest()
-    itemRequest.UpdateKey["Game"] = aws.NewStringItem("e5dd6f4d-5c80-4069-817e-646372bf5f74")
-    itemRequest.Update["GameName"] = dynamo.AttributeUpdates{"PUT", aws.NewStringItem("sadfsdfew ewr a dsf")}
-    itemRequest.Expected["Holinn"] = dynamo.ExpectedItem{true, aws.NewNumberItem(1)}
+    itemRequest.UpdateKey["Game"] = awsgo.NewStringItem("e5dd6f4d-5c80-4069-817e-646372bf5f74")
+    itemRequest.Update["GameName"] = dynamo.AttributeUpdates{"PUT", awsgo.NewStringItem("sadfsdfew ewr a dsf")}
+    itemRequest.Expected["Holinn"] = dynamo.ExpectedItem{true, awsgo.NewNumberItem(1)}
     itemRequest.TableName = "testtable"
 
     itemRequest.Host.Region = "us-west-2"
     itemRequest.Host.Domain = "amazonaws.com"
-    itemRequest.Key.Key, itemRequest.Key.SecretKey, _ = aws.GetSecurityKeys()
+    itemRequest.Key.Key, itemRequest.Key.SecretKey, _ = awsgo.GetSecurityKeys()
 
     resp, err := itemRequest.Request()
     if err != nil {
@@ -96,12 +96,12 @@ func TestUpdateItem() {
 
 func TestPutItem() {
     itemRequest := dynamo.NewPutItemRequest()
-    itemRequest.Item["Game"] = aws.NewStringItem("helloThere!")
+    itemRequest.Item["Game"] = awsgo.NewStringItem("helloThere!")
     itemRequest.TableName = "testtable"
 
     itemRequest.Host.Region = "us-west-2"
     itemRequest.Host.Domain = "amazonaws.com"
-    itemRequest.Key.Key, itemRequest.Key.SecretKey, _ = aws.GetSecurityKeys()
+    itemRequest.Key.Key, itemRequest.Key.SecretKey, _ = awsgo.GetSecurityKeys()
 
     resp, err := itemRequest.Request()
     if err != nil {
@@ -116,13 +116,13 @@ func TestBatchGetItem() {
     tableReq := dynamo.NewBatchGetIteamRequestTable()
     tableReq.Search = make([]map[string]interface{}, 1)
     tableReq.Search[0] = make(map[string]interface{})
-    tableReq.Search[0]["Game"] = aws.NewStringItem("e5dd6f4d-5c80-4069-817e-646372bf5f74")
+    tableReq.Search[0]["Game"] = awsgo.NewStringItem("e5dd6f4d-5c80-4069-817e-646372bf5f74")
     tableReq.AttributesToGet = []string{"GameName"}
     itemRequest.RequestItems["testtable"] = tableReq
 
     itemRequest.Host.Region = "us-west-2"
     itemRequest.Host.Domain = "amazonaws.com"
-    itemRequest.Key.Key, itemRequest.Key.SecretKey, _ = aws.GetSecurityKeys()
+    itemRequest.Key.Key, itemRequest.Key.SecretKey, _ = awsgo.GetSecurityKeys()
 
     resp, err := itemRequest.Request()
     if err != nil {
@@ -142,7 +142,7 @@ func TestPutS3File() {
     putRequest.Source = ioutil.NopCloser(bytes.NewBuffer([]byte(fakePayload)))
 
     putRequest.Host.Domain = "amazonaws.com"
-    putRequest.Key.Key, putRequest.Key.SecretKey, _ = aws.GetSecurityKeys()
+    putRequest.Key.Key, putRequest.Key.SecretKey, _ = awsgo.GetSecurityKeys()
 
     resp, err := putRequest.Request()
     if err != nil {
@@ -167,7 +167,7 @@ func TestSqsSendMessage() {
 
     sendRequest.Host.Region = "us-west-2"
     sendRequest.Host.Domain = "amazonaws.com"
-    sendRequest.Key.Key, sendRequest.Key.SecretKey, _ = aws.GetSecurityKeys()
+    sendRequest.Key.Key, sendRequest.Key.SecretKey, _ = awsgo.GetSecurityKeys()
 
     resp, err := sendRequest.Request()
     fmt.Println(resp, err)
@@ -182,7 +182,7 @@ func TestSqsReceiveMessage() {
 
     sendRequest.Host.Region = "us-west-2"
     sendRequest.Host.Domain = "amazonaws.com"
-    sendRequest.Key.Key, sendRequest.Key.SecretKey, _ = aws.GetSecurityKeys()
+    sendRequest.Key.Key, sendRequest.Key.SecretKey, _ = awsgo.GetSecurityKeys()
 
     resp, err := sendRequest.Request()
     fmt.Println(resp, err)
@@ -197,7 +197,7 @@ func TestSesSendEmail() {
     sendRequest.Source = "example@example.com"
 
     sendRequest.Host.Domain = "amazonaws.com"
-    sendRequest.Key.Key, sendRequest.Key.SecretKey, _ = aws.GetSecurityKeys()
+    sendRequest.Key.Key, sendRequest.Key.SecretKey, _ = awsgo.GetSecurityKeys()
 
     resp, err := sendRequest.Request()
     fmt.Println(resp, err)
@@ -228,7 +228,7 @@ func TestPutMetric() {
 
     putMetricRequest.Host.Region = "us-west-2"
     putMetricRequest.Host.Domain = "amazonaws.com"
-    putMetricRequest.Key.Key, putMetricRequest.Key.SecretKey, _ = aws.GetSecurityKeys()
+    putMetricRequest.Key.Key, putMetricRequest.Key.SecretKey, _ = awsgo.GetSecurityKeys()
 
     resp, err := putMetricRequest.Request()
     fmt.Println(resp, err)

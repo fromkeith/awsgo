@@ -60,7 +60,7 @@ type Message struct {
 }
 
 type SendEmailRequest struct {
-    aws.RequestBuilder
+    awsgo.RequestBuilder
 
     Destination EmailAddresses
     Message     Message
@@ -74,7 +74,7 @@ type SendEmailResult struct {
 
 type SendEmailResponse struct {
     SendEmailResult SendEmailResult
-    ResponseMetadata aws.ResponseMetaData
+    ResponseMetadata awsgo.ResponseMetaData
 }
 
 
@@ -143,12 +143,12 @@ func (gir SendEmailRequest) DeMarshalGetItemResponse(response []byte, headers ma
 }
 
 func (gir SendEmailRequest) Request() (*SendEmailResponse, error) {    
-    request, err := aws.BuildEmptyContentRequest(&gir)
+    request, err := awsgo.BuildEmptyContentRequest(&gir)
     if err != nil {
         return nil, err
     }
-    request.RequestSigningType = aws.RequestSigningType_AWS4
-    resp, err := aws.DoRequest(&gir, request)
+    request.RequestSigningType = awsgo.RequestSigningType_AWS4
+    resp, err := awsgo.DoRequest(&gir, request)
     if resp == nil {
         return nil, err
     }

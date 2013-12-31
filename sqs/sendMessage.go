@@ -39,7 +39,7 @@ import (
 
 
 type SendMessageRequest struct {
-    aws.RequestBuilder
+    awsgo.RequestBuilder
 
     MessageBody  string
     DelaySeconds int
@@ -53,7 +53,7 @@ type SendMessageResult struct {
 
 type SendMessageResponse struct {
     SendMessageResult SendMessageResult
-    ResponseMetadata aws.ResponseMetaData
+    ResponseMetadata awsgo.ResponseMetaData
 }
 
 
@@ -89,7 +89,7 @@ func (gir * SendMessageRequest) VerifyInput() (error) {
 }
 
 func (gir SendMessageRequest) DeMarshalGetItemResponse(response []byte, headers map[string]string) (interface{}) {
-    if err := aws.CheckForErrorXml(response); err != nil {
+    if err := awsgo.CheckForErrorXml(response); err != nil {
         return err
     }
     giResponse := new(SendMessageResponse)
@@ -102,12 +102,12 @@ func (gir SendMessageRequest) DeMarshalGetItemResponse(response []byte, headers 
 }
 
 func (gir SendMessageRequest) Request() (*SendMessageResponse, error) {    
-    request, err := aws.BuildEmptyContentRequest(&gir)
+    request, err := awsgo.BuildEmptyContentRequest(&gir)
     if err != nil {
         return nil, err
     }
-    request.RequestSigningType = aws.RequestSigningType_AWS4
-    resp, err := aws.DoRequest(&gir, request)
+    request.RequestSigningType = awsgo.RequestSigningType_AWS4
+    resp, err := awsgo.DoRequest(&gir, request)
     if resp == nil {
         return nil, err
     }

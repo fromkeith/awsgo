@@ -37,7 +37,7 @@ import (
 
 
 type GetItemRequest struct {
-    aws.RequestBuilder
+    awsgo.RequestBuilder
 
     AttributesToGet        []string  `json:",omitempty"`
     ConsistentRead         bool     `json:",string"`
@@ -100,7 +100,7 @@ func (gir * GetItemRequest) VerifyInput() (error) {
 }
 
 func (gir GetItemRequest) CoRequest() (*GetItemResponseFuture, error) {
-    request, err := aws.BuildRequest(&gir, gir)
+    request, err := awsgo.BuildRequest(&gir, gir)
     if err != nil {
         return nil, err
     }
@@ -121,13 +121,13 @@ func (gir GetItemRequest) DeMarshalGetItemResponse(response []byte, headers map[
         return err
     }
     giResponse.Item = make(map[string]interface{})
-    aws.FromRawMapToAwsItemMap(giResponse.RawItem, giResponse.Item)
+    awsgo.FromRawMapToAwsItemMap(giResponse.RawItem, giResponse.Item)
     return giResponse
 }
 
-func (gir GetItemRequest) CoDoRequest(request aws.AwsRequest, future * GetItemResponseFuture) {
-    request.RequestSigningType = aws.RequestSigningType_AWS4
-    resp, err := aws.DoRequest(&gir, request)
+func (gir GetItemRequest) CoDoRequest(request awsgo.AwsRequest, future * GetItemResponseFuture) {
+    request.RequestSigningType = awsgo.RequestSigningType_AWS4
+    resp, err := awsgo.DoRequest(&gir, request)
     if err != nil {
         future.errResponse <- err
     } else {
@@ -138,12 +138,12 @@ func (gir GetItemRequest) CoDoRequest(request aws.AwsRequest, future * GetItemRe
 }
 
 func (gir GetItemRequest) Request() (*GetItemResponse, error) {    
-    request, err := aws.BuildRequest(&gir, gir)
+    request, err := awsgo.BuildRequest(&gir, gir)
     if err != nil {
         return nil, err
     }
-    request.RequestSigningType = aws.RequestSigningType_AWS4
-    resp, err := aws.DoRequest(&gir, request)
+    request.RequestSigningType = awsgo.RequestSigningType_AWS4
+    resp, err := awsgo.DoRequest(&gir, request)
     if resp == nil {
         return nil, err
     }

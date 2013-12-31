@@ -92,7 +92,7 @@ type MetricDatum struct {
 }
 
 type PutMetricRequest struct {
-    aws.RequestBuilder
+    awsgo.RequestBuilder
 
     MetricData      []MetricDatum
     Namespace       string
@@ -100,7 +100,7 @@ type PutMetricRequest struct {
 
 
 type PutMetricResponse struct {
-    ResponseMetadata aws.ResponseMetaData
+    ResponseMetadata awsgo.ResponseMetaData
 }
 
 
@@ -190,12 +190,12 @@ func (gir PutMetricRequest) DeMarshalGetItemResponse(response []byte, headers ma
 }
 
 func (gir PutMetricRequest) Request() (*PutMetricResponse, error) {    
-    request, err := aws.BuildEmptyContentRequest(&gir)
+    request, err := awsgo.BuildEmptyContentRequest(&gir)
     if err != nil {
         return nil, err
     }
-    request.RequestSigningType = aws.RequestSigningType_AWS4
-    resp, err := aws.DoRequest(&gir, request)
+    request.RequestSigningType = awsgo.RequestSigningType_AWS4
+    resp, err := awsgo.DoRequest(&gir, request)
     if resp == nil {
         return nil, err
     }

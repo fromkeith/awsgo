@@ -49,7 +49,7 @@ type batchGetItemRequestTableDeserialized struct {
 
 
 type BatchGetItemRequest struct {
-    aws.RequestBuilder
+    awsgo.RequestBuilder
 
     RequestItems            map[string]BatchGetItemRequestTable
     ReturnConsumedCapacity  string     
@@ -99,7 +99,7 @@ func (gir * BatchGetItemRequest) VerifyInput() (error) {
 }
 /*
 func (gir BatchGetItemRequest) CoRequest() (*GetItemResponseFuture, error) {
-    request, err := aws.BuildRequest(&gir, GetItemTarget, gir)
+    request, err := awsgo.BuildRequest(&gir, GetItemTarget, gir)
     if err != nil {
         return nil, err
     }
@@ -126,7 +126,7 @@ func (gir BatchGetItemRequest) DeMarshalGetItemResponse(response []byte, headers
         giResponse.Responses[key] = make([]map[string]interface{}, len(val))
         for i := range val {
             giResponse.Responses[key][i] = make(map[string]interface{})
-            aws.FromRawMapToAwsItemMap(val[i], giResponse.Responses[key][i])
+            awsgo.FromRawMapToAwsItemMap(val[i], giResponse.Responses[key][i])
         }
     }
     // RawUnprocessed, including Search: map[string]{Search}[]map[string]map[string]string
@@ -137,15 +137,15 @@ func (gir BatchGetItemRequest) DeMarshalGetItemResponse(response []byte, headers
         c.Search = make([]map[string]interface{}, len(val.Search))
         for i := range val.Search {
             c.Search[i] = make(map[string]interface{})
-            aws.FromRawMapToAwsItemMap(val.Search[i], c.Search[i])
+            awsgo.FromRawMapToAwsItemMap(val.Search[i], c.Search[i])
         }
         giResponse.UnprocessedKeys[key] = c
     }
     return giResponse
 }
 /*
-func (gir BatchGetItemRequest) CoDoRequest(request aws.AwsRequest, future * GetItemResponseFuture) {
-    resp, err := aws.DoRequest(&gir, request)
+func (gir BatchGetItemRequest) CoDoRequest(request awsgo.AwsRequest, future * GetItemResponseFuture) {
+    resp, err := awsgo.DoRequest(&gir, request)
     if err != nil {
         future.errResponse <- err
     } else {
@@ -156,12 +156,12 @@ func (gir BatchGetItemRequest) CoDoRequest(request aws.AwsRequest, future * GetI
 }*/
 
 func (gir BatchGetItemRequest) Request() (*BatchGetItemResponse, error) {    
-    request, err := aws.BuildRequest(&gir, gir)
+    request, err := awsgo.BuildRequest(&gir, gir)
     if err != nil {
         return nil, err
     }
-    request.RequestSigningType = aws.RequestSigningType_AWS4
-    resp, err := aws.DoRequest(&gir, request)
+    request.RequestSigningType = awsgo.RequestSigningType_AWS4
+    resp, err := awsgo.DoRequest(&gir, request)
     if resp == nil {
         return nil, err
     }
