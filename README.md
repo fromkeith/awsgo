@@ -32,6 +32,12 @@ Supported operations for each service:
 * Receive Message
 * Send Message
 
-# License
+
+## Depends on
+    github.com/pmylund/sortutil
+    - for sorting
+
+
+## License
 See LICENSE file.
 
