@@ -145,7 +145,7 @@ func addMetricDatumToUri(uri string, datum MetricDatum, index int) (string, erro
     }
     if datum.Timestamp != nil {
         uri = fmt.Sprintf("%s&MetricData.member.%d.Timestamp=%s",
-            uri, index, url.QueryEscape(aws.IsoDate(*datum.Timestamp)))
+            uri, index, url.QueryEscape(awsgo.IsoDate(*datum.Timestamp)))
     }
     if len(datum.Unit) > 0 {
         uri = fmt.Sprintf("%s&MetricData.member.%d.Unit=%s",
