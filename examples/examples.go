@@ -142,8 +142,8 @@ func TestBatchGetItem() {
 func testBatchWriteItem_Put(keys []string) {
     itemRequest := dynamo.NewBatchWriteItemRequest()
     for i := range keys {
-        itemRequest.AddPutRequestString(TEST_TABLE_NAME,
-            map[string]awsgo.AwsStringItem{
+        itemRequest.AddPutRequest(TEST_TABLE_NAME,
+            map[string]interface{}{
                 TEST_ITEM_NAME : awsgo.NewStringItem(keys[i]),
                 "GameName" : awsgo.NewStringItem("gg"),
             })
@@ -162,8 +162,8 @@ func testBatchWriteItem_Delete(keys []string) {
     itemRequest := dynamo.NewBatchWriteItemRequest()
 
     for i := range keys {
-        itemRequest.AddDeleteRequestString(TEST_TABLE_NAME,
-            map[string]awsgo.AwsStringItem{
+        itemRequest.AddDeleteRequest(TEST_TABLE_NAME,
+            map[string]interface{}{
                 TEST_ITEM_NAME : awsgo.NewStringItem(keys[i]),
             })
     }

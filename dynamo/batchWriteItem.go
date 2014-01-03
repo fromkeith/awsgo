@@ -87,7 +87,11 @@ func (req * BatchWriteItemRequest) checkAndGrow(table string) ([]BatchWriteItem)
     return genericItems
 }
 
-func (req *BatchWriteItemRequest) AddDeleteRequestString(table string, items map[string]awsgo.AwsStringItem) {
+/** Adds the delete request items into the request.
+ * @param table the name of the table to modify
+ * @param items a map of awsgo.AwsStringItem and awsgo.AwsNumberItem
+ */
+func (req *BatchWriteItemRequest) AddDeleteRequest(table string, items map[string]interface{}) {
     genericItems := req.checkAndGrow(table)
 
     writeReq := new(BatchWriteItemDeleteRequest)
@@ -100,7 +104,11 @@ func (req *BatchWriteItemRequest) AddDeleteRequestString(table string, items map
     req.RequestItems[table] = genericItems
 }
 
-func (req *BatchWriteItemRequest) AddPutRequestString(table string, items map[string]awsgo.AwsStringItem) {
+/** Adds the put request items into the request.
+ * @param table the name of the table to modify
+ * @param items a map of awsgo.AwsStringItem and awsgo.AwsNumberItem
+ */
+func (req *BatchWriteItemRequest) AddPutRequest(table string, items map[string]interface{}) {
     genericItems := req.checkAndGrow(table)
 
     writeReq := new(BatchWriteItemPutRequest)
