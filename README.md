@@ -20,6 +20,7 @@ Supported operations for each service:
 * Get Item
 * Put Item
 * Update Item
+* Batch Write Item
 
 ### S3
 * Put Item

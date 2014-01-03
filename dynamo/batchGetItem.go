@@ -52,7 +52,7 @@ type BatchGetItemRequest struct {
     awsgo.RequestBuilder
 
     RequestItems            map[string]BatchGetItemRequestTable
-    ReturnConsumedCapacity  string     
+    ReturnConsumedCapacity  string
 }
 
 type BatchGetItemResponse struct {
@@ -76,7 +76,7 @@ func NewBatchGetItemRequest() *BatchGetItemRequest {
     req.RequestItems = make(map[string]BatchGetItemRequestTable)
     req.ReturnConsumedCapacity = ConsumedCapacity_NONE
     req.Headers = make(map[string]string)
-    req.Headers["X-Amz-Target"] = BatchGetItemTarget;
+    req.Headers["X-Amz-Target"] = BatchGetItemTarget
     req.RequestMethod = "POST"
     req.CanonicalUri = "/"
     req.Host.Service = ""

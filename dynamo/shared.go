@@ -41,6 +41,8 @@ const (
     ReturnItemCollection_NONE = "NONE"
     ReturnValues_ALL_OLD = "ALL_OLD"
     ReturnValues_NONE = "NONE"
+    ItemCollectionMetrics_SIZE = "SIZE"
+    ItemCollectionMetrics_NONE = "NONE"
 )
 
 
@@ -50,6 +52,7 @@ const (
     PutItemTarget = "DynamoDB_20120810.PutItem"
     BatchGetItemTarget = "DynamoDB_20120810.BatchGetItem"
     UpdateItemTarget = "DynamoDB_20120810.UpdateItem"
+    BatchWriteItemTarget = "DynamoDB_20120810.BatchWriteItem"
 )
 // Known Errors
 const (

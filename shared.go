@@ -326,6 +326,7 @@ func (req * AwsRequest) SendRequest() (string, map[string]string, int, error) {
         hreq.ContentLength, _ = strconv.ParseInt(val, 10, 64)
     }
     if req.Payload != "" {
+        //fmt.Println("Payload", req.Payload)
         hreq.Body = ioutil.NopCloser(bytes.NewBuffer([]byte(req.Payload)))
     } else if req.PayloadReader != nil {
         hreq.Body = req.PayloadReader

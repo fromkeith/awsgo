@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package examples
+package main
 
 import (
     "fmt"
@@ -43,10 +43,17 @@ import (
     "time"
 )
 
+const (
+    TEST_TABLE_NAME = "test.table"
+    TEST_SQS_QUEUE = "1234"
+    TEST_ITEM_NAME = "Game"
+    TEST_S3_BUCKET = "testbucket"
+)
+
 func TestGetItem() {
     itemRequest := dynamo.NewGetItemRequest()
-    itemRequest.Search["Game"] = awsgo.NewStringItem("e5dd6f4d-5c80-4069-817e-646372bf5f74")
-    itemRequest.TableName = "test.table"
+    itemRequest.Search[TEST_ITEM_NAME] = awsgo.NewStringItem("e5dd6f4d-5c80-4069-817e-646372bf5f74")
+    itemRequest.TableName = TEST_TABLE_NAME
     itemRequest.AttributesToGet = []string{"GameName"}
 
     itemRequest.Host.Region = "us-west-2"
@@ -77,10 +84,10 @@ func TestGetItem() {
 
 func TestUpdateItem() {
     itemRequest := dynamo.NewUpdateItemRequest()
-    itemRequest.UpdateKey["Game"] = awsgo.NewStringItem("e5dd6f4d-5c80-4069-817e-646372bf5f74")
+    itemRequest.UpdateKey[TEST_ITEM_NAME] = awsgo.NewStringItem("e5dd6f4d-5c80-4069-817e-646372bf5f74")
     itemRequest.Update["GameName"] = dynamo.AttributeUpdates{"PUT", awsgo.NewStringItem("sadfsdfew ewr a dsf")}
     itemRequest.Expected["Holinn"] = dynamo.ExpectedItem{true, awsgo.NewNumberItem(1)}
-    itemRequest.TableName = "testtable"
+    itemRequest.TableName = TEST_TABLE_NAME
 
     itemRequest.Host.Region = "us-west-2"
     itemRequest.Host.Domain = "amazonaws.com"
@@ -96,8 +103,8 @@ func TestUpdateItem() {
 
 func TestPutItem() {
     itemRequest := dynamo.NewPutItemRequest()
-    itemRequest.Item["Game"] = awsgo.NewStringItem("helloThere!")
-    itemRequest.TableName = "testtable"
+    itemRequest.Item[TEST_ITEM_NAME] = awsgo.NewStringItem("helloThere!")
+    itemRequest.TableName = TEST_TABLE_NAME
 
     itemRequest.Host.Region = "us-west-2"
     itemRequest.Host.Domain = "amazonaws.com"
@@ -116,9 +123,9 @@ func TestBatchGetItem() {
     tableReq := dynamo.NewBatchGetIteamRequestTable()
     tableReq.Search = make([]map[string]interface{}, 1)
     tableReq.Search[0] = make(map[string]interface{})
-    tableReq.Search[0]["Game"] = awsgo.NewStringItem("e5dd6f4d-5c80-4069-817e-646372bf5f74")
+    tableReq.Search[0][TEST_ITEM_NAME] = awsgo.NewStringItem("e5dd6f4d-5c80-4069-817e-646372bf5f74")
     tableReq.AttributesToGet = []string{"GameName"}
-    itemRequest.RequestItems["testtable"] = tableReq
+    itemRequest.RequestItems[TEST_TABLE_NAME] = tableReq
 
     itemRequest.Host.Region = "us-west-2"
     itemRequest.Host.Domain = "amazonaws.com"
@@ -132,11 +139,75 @@ func TestBatchGetItem() {
     fmt.Println(resp)
 }
 
+func testBatchWriteItem_Put(keys []string) {
+    itemRequest := dynamo.NewBatchWriteItemRequest()
+    for i := range keys {
+        itemRequest.AddPutRequestString(TEST_TABLE_NAME,
+            map[string]awsgo.AwsStringItem{
+                TEST_ITEM_NAME : awsgo.NewStringItem(keys[i]),
+                "GameName" : awsgo.NewStringItem("gg"),
+            })
+    }
+    itemRequest.Host.Region = "us-west-2"
+    itemRequest.Host.Domain = "amazonaws.com"
+    itemRequest.Key.Key, itemRequest.Key.SecretKey, _ = awsgo.GetSecurityKeys()
+    resp, err := itemRequest.Request()
+    if err != nil {
+        fmt.Println(err)
+        return
+    }
+    fmt.Println(resp)
+}
+func testBatchWriteItem_Delete(keys []string) {
+    itemRequest := dynamo.NewBatchWriteItemRequest()
+
+    for i := range keys {
+        itemRequest.AddDeleteRequestString(TEST_TABLE_NAME,
+            map[string]awsgo.AwsStringItem{
+                TEST_ITEM_NAME : awsgo.NewStringItem(keys[i]),
+            })
+    }
+    itemRequest.Host.Region = "us-west-2"
+    itemRequest.Host.Domain = "amazonaws.com"
+    itemRequest.Key.Key, itemRequest.Key.SecretKey, _ = awsgo.GetSecurityKeys()
+    resp, err := itemRequest.Request()
+    if err != nil {
+        fmt.Println(err)
+        return
+    }
+    fmt.Println(resp)
+    if len(resp.UnprocessedItems) > 0 {
+        fmt.Println("WAiting to retry unprocessed items: ", len(resp.UnprocessedItems))
+        time.Sleep(5000)
+        itemRequest2 := dynamo.NewBatchWriteItemRequest()
+        itemRequest2.RequestItems = resp.UnprocessedItems
+        itemRequest2.Host.Region = "us-west-2"
+        itemRequest2.Host.Domain = "amazonaws.com"
+        itemRequest2.Key.Key, itemRequest2.Key.SecretKey, _ = awsgo.GetSecurityKeys()
+        resp, err := itemRequest2.Request()
+        if err != nil {
+        fmt.Println(err)
+            return
+        }
+        fmt.Println(resp)
+    }
+}
+
+func TestBatchWriteItem() {
+    keys := make([]string, 25)
+    for i := range keys {
+        keys[i] = fmt.Sprintf("test%d", i)
+    }
+
+    testBatchWriteItem_Put(keys)
+    testBatchWriteItem_Delete(keys)
+}
+
 func TestPutS3File() {
     putRequest := s3.NewPutObjectRequest()
     putRequest.ContentType = "text/plain"
     putRequest.Permissions = "private"
-    putRequest.Path = "someexamplebucket/haha/test.jpg"
+    putRequest.Path = fmt.Sprintf("%s/haha/test.jpg", TEST_S3_BUCKET)
     fakePayload := "1234567890"
     putRequest.Length = int64(len(fakePayload))
     putRequest.Source = ioutil.NopCloser(bytes.NewBuffer([]byte(fakePayload)))
@@ -163,7 +234,7 @@ func TestPutS3File() {
 func TestSqsSendMessage() {
     sendRequest := sqs.NewSendMessageRequest()
     sendRequest.MessageBody = "hello"
-    sendRequest.TaskQueue = "/<queueNumber>/TestQueue"
+    sendRequest.TaskQueue = fmt.Sprintf("/%s/TestQueue", TEST_SQS_QUEUE)
 
     sendRequest.Host.Region = "us-west-2"
     sendRequest.Host.Domain = "amazonaws.com"
@@ -176,7 +247,7 @@ func TestSqsSendMessage() {
 
 func TestSqsReceiveMessage() {
     sendRequest := sqs.NewReceiveMessageRequest()
-    sendRequest.TaskQueue = "/<queueNumber>/TestQueue"
+    sendRequest.TaskQueue = fmt.Sprintf("/%s/TestQueue", TEST_SQS_QUEUE)
     sendRequest.WaitTimeSeconds = 10
     sendRequest.MaxNumberOfMessages = 1
 
@@ -232,4 +303,18 @@ func TestPutMetric() {
 
     resp, err := putMetricRequest.Request()
     fmt.Println(resp, err)
+}
+
+
+func main() {
+    //TestGetItem()
+    //TestUpdateItem()
+    //TestPutItem()
+    //TestBatchGetItem()
+    TestBatchWriteItem()
+    //TestPutS3File()
+    //TestSqsSendMessage()
+    //TestSqsReceiveMessage()
+    //TestSesSendEmail()
+    //TestPutMetric()
 }
