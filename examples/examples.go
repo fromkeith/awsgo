@@ -203,6 +203,27 @@ func TestBatchWriteItem() {
     testBatchWriteItem_Delete(keys)
 }
 
+func TestQuery() {
+    req := dynamo.NewQueryRequest()
+    req.AddKeyCondition(TEST_ITEM_NAME,
+        []interface{}{
+            awsgo.NewStringItem("test4"),
+        },
+        dynamo.ComparisonOperator_EQ)
+    req.Select = dynamo.Select_ALL_ATTRIBUTES
+    req.TableName = TEST_TABLE_NAME
+    req.Host.Region = "us-west-2"
+    req.Host.Domain = "amazonaws.com"
+    req.Key.Key, req.Key.SecretKey, _ = awsgo.GetSecurityKeys()
+
+    resp, err := req.Request()
+    if err != nil {
+        fmt.Println(err)
+        return
+    }
+    fmt.Println(resp)
+}
+
 func TestPutS3File() {
     putRequest := s3.NewPutObjectRequest()
     putRequest.ContentType = "text/plain"
@@ -311,7 +332,8 @@ func main() {
     //TestUpdateItem()
     //TestPutItem()
     //TestBatchGetItem()
-    TestBatchWriteItem()
+    //TestBatchWriteItem()
+    TestQuery()
     //TestPutS3File()
     //TestSqsSendMessage()
     //TestSqsReceiveMessage()

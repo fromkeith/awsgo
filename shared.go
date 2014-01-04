@@ -183,6 +183,9 @@ func (rb RequestBuilder) CreateJsonAwsRequest(marsh interface{}) (request AwsReq
     request.Date = time.Now()
     pay, _ := json.Marshal(marsh)
     request.Payload = string(pay)
+    if request.Headers == nil {
+        request.Headers = make(map[string]string)
+    }
     request.Headers["Content-Type"] = "application/x-amz-json-1.0"
     request.Headers["Content-Length"] = fmt.Sprintf("%d", len(request.Payload))
     return
@@ -351,6 +354,7 @@ func (req * AwsRequest) SendRequest() (string, map[string]string, int, error) {
     for k, v := range resp.Header {
         responseHeaders[strings.ToLower(k)] = strings.Join(v, ";")
     }
+    //fmt.Println("Response", string(responseContent))
 
     return string(responseContent), responseHeaders, resp.StatusCode, nil
 }

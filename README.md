@@ -21,6 +21,8 @@ Supported operations for each service:
 * Put Item
 * Update Item
 * Batch Write Item
+* Query
+    * Only partially tested
 
 ### S3
 * Put Item

@@ -34,15 +34,32 @@ import (
     "fmt"
 )
 
+// Variable Constants
 const (
     ConsumedCapacity_TOTAL = "TOTAL"
     ConsumedCapacity_NONE = "NONE"
+
     ReturnItemCollection_SIZE = "SIZE"
     ReturnItemCollection_NONE = "NONE"
+
     ReturnValues_ALL_OLD = "ALL_OLD"
     ReturnValues_NONE = "NONE"
+
     ItemCollectionMetrics_SIZE = "SIZE"
     ItemCollectionMetrics_NONE = "NONE"
+
+    ComparisonOperator_EQ = "EQ"
+    ComparisonOperator_LE = "LE"
+    ComparisonOperator_LT = "LT"
+    ComparisonOperator_GE = "GE"
+    ComparisonOperator_GT = "GT"
+    ComparisonOperator_BEGINS_WITH = "BEGINS_WITH"
+    ComparisonOperator_BETWEEN = "BETWEEN"
+
+    Select_ALL_ATTRIBUTES = "ALL_ATTRIBUTES"
+    Select_ALL_PROJECTED_ATTRIBUTES = "ALL_PROJECTED_ATTRIBUTES"
+    Select_COUNT = "COUNT"
+    Select_SPECIFIC_ATTRIBUTES  = "SPECIFIC_ATTRIBUTES "
 )
 
 
@@ -53,6 +70,7 @@ const (
     BatchGetItemTarget = "DynamoDB_20120810.BatchGetItem"
     UpdateItemTarget = "DynamoDB_20120810.UpdateItem"
     BatchWriteItemTarget = "DynamoDB_20120810.BatchWriteItem"
+    QueryTarget = "DynamoDB_20120810.Query"
 )
 // Known Errors
 const (
