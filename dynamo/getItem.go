@@ -49,7 +49,7 @@ type GetItemRequest struct {
 type GetItemResponse struct {
     ConsumedCapacity *CapacityResult             `json:",omitempty"`
     Item             map[string]interface{}      `json:"-"`
-    RawItem          map[string]map[string]string   `json:"Item"`
+    RawItem          map[string]map[string]interface{}  `json:"Item"`
 }
 
 type GetItemResponseFuture struct {

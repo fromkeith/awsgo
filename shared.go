@@ -96,21 +96,52 @@ func NewNumberItem(items ... float64) AwsNumberItem {
     }
     return s
 }
-
-func FromRawMapToAwsItemMap(raw map[string]map[string]string, item map[string]interface{}) {
+func FromRawMapToAwsItemMap(raw map[string]map[string]interface{}, item map[string]interface{}) {
     for key, value := range raw {
-        if _, ok := value["S"]; ok {
-            item[key] = AwsStringItem{value["S"], nil}
+        if v, ok := value["S"]; ok {
+            switch t := v.(type) {
+            case string:
+                item[key] = AwsStringItem{t, nil}
+                break
+            }
         }
-        if _, ok := value["SS"]; ok {
-            //item[key] = AwsStringItem{"", value["SS"]}
+        if v, ok := value["SS"]; ok {
+            switch t := v.(type) {
+            case []interface{}:
+                vals := make([]string, len(t))
+                for i := range t {
+                    switch t2 := t[i].(type) {
+                    case string:
+                        vals[i] = t2
+                        break
+                    }
+                }
+                item[key] = AwsStringItem{"", vals}
+                break
+            }
         }
-        if _, ok := value["N"]; ok {
-            f, _ := strconv.ParseFloat(value["N"], 64)
-            item[key] = AwsNumberItem{f, nil}
+        if v, ok := value["N"]; ok {
+            switch t := v.(type) {
+            case string:
+                f, _ := strconv.ParseFloat(t, 64)
+                item[key] = AwsNumberItem{f, nil}
+                break
+            }
         }
-        if _, ok := value["NS"]; ok {
-            //item[key] = AwsNumberItem{0, []float64(value["NS"])}
+        if v, ok := value["NS"]; ok {
+            switch t := v.(type) {
+            case []interface{}:
+                nums := make([]float64, len(t))
+                for i := range t {
+                    switch t2 := t[i].(type) {
+                    case string:
+                        nums[i], _ = strconv.ParseFloat(t2, 64)
+                        break
+                    }
+                }
+                item[key] = AwsNumberItem{0, nums}
+                break
+            }
         }
     }
 }

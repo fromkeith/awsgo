@@ -59,9 +59,9 @@ type QueryResponse struct {
     ConsumedCapacity *CapacityResult             `json:",omitempty"`
     Count                   float64
     Items                   []map[string]interface{}    `json:"-"`
-    RawItems                []map[string]map[string]string `json:"Items"`
+    RawItems                []map[string]map[string]interface{} `json:"Items"`
     LastEvaluatedKey        map[string]interface{}      `json:"-"`
-    RawLastEvaluatedKey     map[string]map[string]string    `json:"LastEvaluatedKey"`
+    RawLastEvaluatedKey     map[string]map[string]interface{}    `json:"LastEvaluatedKey"`
 }
 
 func (req *QueryRequest) AddKeyCondition(keyName string, values []interface{}, operator string) {

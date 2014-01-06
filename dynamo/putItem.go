@@ -49,7 +49,7 @@ type PutItemRequest struct {
 
 
 type PutItemResponse struct {
-    RawBeforeAttributes      map[string]map[string]string   `json:"Attributes"`
+    RawBeforeAttributes      map[string]map[string]interface{}   `json:"Attributes"`
     BeforeAttributes         map[string]interface{}         `json:"-"`
     ConsumedCapacity         *CapacityResult                `json:",omitempty"`
     ItemCollectionMetrics    *ItemCollectionMetricsStruct   `json:",omitempty"`

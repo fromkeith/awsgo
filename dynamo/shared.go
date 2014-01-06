@@ -42,8 +42,14 @@ const (
     ReturnItemCollection_SIZE = "SIZE"
     ReturnItemCollection_NONE = "NONE"
 
-    ReturnValues_ALL_OLD = "ALL_OLD"
+    // apply to update & put
     ReturnValues_NONE = "NONE"
+    ReturnValues_ALL_OLD = "ALL_OLD"
+    // apply only to update
+    ReturnValues_UPDATED_OLD = "UPDATED_OLD"
+    ReturnValues_ALL_NEW = "ALL_NEW"
+    ReturnValues_UPDATED_NEW = "UPDATED_NEW"
+    
 
     ItemCollectionMetrics_SIZE = "SIZE"
     ItemCollectionMetrics_NONE = "NONE"

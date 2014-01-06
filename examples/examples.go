@@ -41,6 +41,7 @@ import (
     "bytes"
     "crypto/md5"
     "time"
+    "math/rand"
 )
 
 const (
@@ -54,7 +55,7 @@ func TestGetItem() {
     itemRequest := dynamo.NewGetItemRequest()
     itemRequest.Search[TEST_ITEM_NAME] = awsgo.NewStringItem("e5dd6f4d-5c80-4069-817e-646372bf5f74")
     itemRequest.TableName = TEST_TABLE_NAME
-    itemRequest.AttributesToGet = []string{"GameName"}
+    itemRequest.AttributesToGet = []string{"Num", "NumArray", "String", "StringArray"}
 
     itemRequest.Host.Region = "us-west-2"
     itemRequest.Host.Domain = "amazonaws.com"
@@ -71,23 +72,63 @@ func TestGetItem() {
         fmt.Println(getErr)
         return
     }
-    itemCast := resp.Item["GameName"]
-    switch itemCast := itemCast.(type) {
+    s := resp.Item["String"]
+    switch itemCast := s.(type) {
     case awsgo.AwsStringItem:
+        if itemCast.Values != nil {
+            panic("Values should be nil")
+        }
         fmt.Println(itemCast.Value)
-    case string:
-        fmt.Println("isstring")
     default:
-        fmt.Println("Unknown type %T", itemCast)
+        panic(fmt.Sprintf("Unexpected type: %T", itemCast))
+    }
+    ss := resp.Item["StringArray"]
+    switch itemCast := ss.(type) {
+    case awsgo.AwsStringItem:
+        if itemCast.Values == nil {
+            panic("Values should not be nil")
+        }
+        if len(itemCast.Values) != 3 {
+            panic(fmt.Sprintf("Values should have 3 items, got %d", len(itemCast.Values)))
+        }
+        fmt.Println(itemCast.Values)
+    default:
+        panic(fmt.Sprintf("Unexpected type: %T", itemCast))
+    }
+    n := resp.Item["Num"]
+    switch itemCast := n.(type) {
+    case awsgo.AwsNumberItem:
+        if itemCast.Values != nil {
+            panic("Values should be nil")
+        }
+        fmt.Println(itemCast.Value)
+    default:
+        panic(fmt.Sprintf("Unexpected type: %T", itemCast))
+    }
+    nn := resp.Item["NumArray"]
+    switch itemCast := nn.(type) {
+    case awsgo.AwsNumberItem:
+        if itemCast.Values == nil {
+            panic("Values should not be nil")
+        }
+        if len(itemCast.Values) != 3 {
+            panic(fmt.Sprintf("Values should have 3 items, got %d", len(itemCast.Values)))
+        }
+        fmt.Println(itemCast.Values)
+    default:
+        panic(fmt.Sprintf("Unexpected type: %T", itemCast))
     }
 }
 
 func TestUpdateItem() {
     itemRequest := dynamo.NewUpdateItemRequest()
     itemRequest.UpdateKey[TEST_ITEM_NAME] = awsgo.NewStringItem("e5dd6f4d-5c80-4069-817e-646372bf5f74")
-    itemRequest.Update["GameName"] = dynamo.AttributeUpdates{"PUT", awsgo.NewStringItem("sadfsdfew ewr a dsf")}
+    rand.Seed(time.Now().Unix())
+    newName := fmt.Sprintf("%d", rand.Int())
+    itemRequest.Update["GameName"] = dynamo.AttributeUpdates{"PUT", awsgo.NewStringItem(newName)}
     itemRequest.Expected["Holinn"] = dynamo.ExpectedItem{true, awsgo.NewNumberItem(1)}
     itemRequest.TableName = TEST_TABLE_NAME
+    itemRequest.ReturnValues = dynamo.ReturnValues_UPDATED_NEW
 
     itemRequest.Host.Region = "us-west-2"
     itemRequest.Host.Domain = "amazonaws.com"
@@ -98,6 +139,18 @@ func TestUpdateItem() {
         fmt.Printf("WasError %T %v \n", err, err)
         return
     }
+    
+    switch itemCast := resp.BeforeAttributes["GameName"].(type) {
+    case awsgo.AwsStringItem:
+        if itemCast.Values != nil {
+            panic("Values should be nil")
+        }
+        if itemCast.Value != newName {
+            panic("Updated value was not updated!")
+        }
+    default:
+        panic(fmt.Sprintf("Unexpected type: %T", itemCast))
+    }
     fmt.Println(resp)
 }
 
@@ -105,6 +158,7 @@ func TestPutItem() {
     itemRequest := dynamo.NewPutItemRequest()
     itemRequest.Item[TEST_ITEM_NAME] = awsgo.NewStringItem("helloThere!")
     itemRequest.TableName = TEST_TABLE_NAME
+    itemRequest.ReturnValues = dynamo.ReturnValues_ALL_OLD
 
     itemRequest.Host.Region = "us-west-2"
     itemRequest.Host.Domain = "amazonaws.com"

@@ -61,7 +61,7 @@ type BatchWriteItemResponse struct {
     ItemCollectionMetrics * ItemCollectionMetricsStruct `json:",omitempty"`
     UnprocessedItems    map[string][]BatchWriteItem `json:"-"`
                     //     table  | operations| key/item | name     | item type/value
-    RawUnprocessItems  map[string][]map[string]map[string]map[string]map[string]string `json:"UnprocessedItems"`
+    RawUnprocessItems  map[string][]map[string]map[string]map[string]map[string]interface{} `json:"UnprocessedItems"`
 }
 
 

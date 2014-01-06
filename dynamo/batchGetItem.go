@@ -44,7 +44,7 @@ type BatchGetItemRequestTable struct {
 type batchGetItemRequestTableDeserialized struct {
     AttributesToGet        []string  `json:",omitempty"`
     ConsistentRead         bool     `json:",string"`
-    Search                 []map[string]map[string]string  `json:"Keys"` 
+    Search                 []map[string]map[string]interface{}  `json:"Keys"` 
 }
 
 
@@ -58,7 +58,7 @@ type BatchGetItemRequest struct {
 type BatchGetItemResponse struct {
     ConsumedCapacity *CapacityResult             `json:",omitempty"`
     Responses        map[string][]map[string]interface{}        `json:"-"`
-    RawResponses     map[string][]map[string]map[string]string  `json:"Responses"`
+    RawResponses     map[string][]map[string]map[string]interface{}  `json:"Responses"`
     UnprocessedKeys  map[string]BatchGetItemRequestTable        `json:"-"`
     RawUnprocessedKeys map[string]batchGetItemRequestTableDeserialized `json:"UnprocessedKeys"`
 }

@@ -14,7 +14,7 @@ Supported operations for each service:
 * Put Metric
 
 ### DynamoDB
-> Caveat: Only single value items are returned. Eg. If the column 'A' has 2 values for one item, that is not supported yet. (At least, not yet tested)
+> Caveat: Binary values are not yet supported.
 
 * Batch Get Item
 * Get Item
