@@ -59,7 +59,7 @@ func TestGetItem() {
 
     itemRequest.Host.Region = "us-west-2"
     itemRequest.Host.Domain = "amazonaws.com"
-    itemRequest.Key.Key, itemRequest.Key.SecretKey, _ = awsgo.GetSecurityKeys()
+    itemRequest.Key, _ = awsgo.GetSecurityKeys()
 
     //resp, _ := itemRequest.Request()
     fu, futureError := itemRequest.CoRequest()
@@ -132,7 +132,7 @@ func TestUpdateItem() {
 
     itemRequest.Host.Region = "us-west-2"
     itemRequest.Host.Domain = "amazonaws.com"
-    itemRequest.Key.Key, itemRequest.Key.SecretKey, _ = awsgo.GetSecurityKeys()
+    itemRequest.Key, _ = awsgo.GetSecurityKeys()
 
     resp, err := itemRequest.Request()
     if err != nil {
@@ -162,7 +162,7 @@ func TestPutItem() {
 
     itemRequest.Host.Region = "us-west-2"
     itemRequest.Host.Domain = "amazonaws.com"
-    itemRequest.Key.Key, itemRequest.Key.SecretKey, _ = awsgo.GetSecurityKeys()
+    itemRequest.Key, _ = awsgo.GetSecurityKeys()
 
     resp, err := itemRequest.Request()
     if err != nil {
@@ -183,7 +183,7 @@ func TestBatchGetItem() {
 
     itemRequest.Host.Region = "us-west-2"
     itemRequest.Host.Domain = "amazonaws.com"
-    itemRequest.Key.Key, itemRequest.Key.SecretKey, _ = awsgo.GetSecurityKeys()
+    itemRequest.Key, _ = awsgo.GetSecurityKeys()
 
     resp, err := itemRequest.Request()
     if err != nil {
@@ -204,7 +204,7 @@ func testBatchWriteItem_Put(keys []string) {
     }
     itemRequest.Host.Region = "us-west-2"
     itemRequest.Host.Domain = "amazonaws.com"
-    itemRequest.Key.Key, itemRequest.Key.SecretKey, _ = awsgo.GetSecurityKeys()
+    itemRequest.Key, _ = awsgo.GetSecurityKeys()
     resp, err := itemRequest.Request()
     if err != nil {
         fmt.Println(err)
@@ -223,7 +223,7 @@ func testBatchWriteItem_Delete(keys []string) {
     }
     itemRequest.Host.Region = "us-west-2"
     itemRequest.Host.Domain = "amazonaws.com"
-    itemRequest.Key.Key, itemRequest.Key.SecretKey, _ = awsgo.GetSecurityKeys()
+    itemRequest.Key, _ = awsgo.GetSecurityKeys()
     resp, err := itemRequest.Request()
     if err != nil {
         fmt.Println(err)
@@ -237,7 +237,7 @@ func testBatchWriteItem_Delete(keys []string) {
         itemRequest2.RequestItems = resp.UnprocessedItems
         itemRequest2.Host.Region = "us-west-2"
         itemRequest2.Host.Domain = "amazonaws.com"
-        itemRequest2.Key.Key, itemRequest2.Key.SecretKey, _ = awsgo.GetSecurityKeys()
+        itemRequest2.Key, _ = awsgo.GetSecurityKeys()
         resp, err := itemRequest2.Request()
         if err != nil {
         fmt.Println(err)
@@ -268,7 +268,7 @@ func TestQuery() {
     req.TableName = TEST_TABLE_NAME
     req.Host.Region = "us-west-2"
     req.Host.Domain = "amazonaws.com"
-    req.Key.Key, req.Key.SecretKey, _ = awsgo.GetSecurityKeys()
+    req.Key, _ = awsgo.GetSecurityKeys()
 
     resp, err := req.Request()
     if err != nil {
@@ -288,7 +288,7 @@ func TestPutS3File() {
     putRequest.Source = ioutil.NopCloser(bytes.NewBuffer([]byte(fakePayload)))
 
     putRequest.Host.Domain = "amazonaws.com"
-    putRequest.Key.Key, putRequest.Key.SecretKey, _ = awsgo.GetSecurityKeys()
+    putRequest.Key, _ = awsgo.GetSecurityKeys()
 
     resp, err := putRequest.Request()
     if err != nil {
@@ -313,7 +313,7 @@ func TestSqsSendMessage() {
 
     sendRequest.Host.Region = "us-west-2"
     sendRequest.Host.Domain = "amazonaws.com"
-    sendRequest.Key.Key, sendRequest.Key.SecretKey, _ = awsgo.GetSecurityKeys()
+    sendRequest.Key, _ = awsgo.GetSecurityKeys()
 
     resp, err := sendRequest.Request()
     fmt.Println(resp, err)
@@ -328,7 +328,7 @@ func TestSqsReceiveMessage() {
 
     sendRequest.Host.Region = "us-west-2"
     sendRequest.Host.Domain = "amazonaws.com"
-    sendRequest.Key.Key, sendRequest.Key.SecretKey, _ = awsgo.GetSecurityKeys()
+    sendRequest.Key, _ = awsgo.GetSecurityKeys()
 
     resp, err := sendRequest.Request()
     fmt.Println(resp, err)
@@ -343,7 +343,7 @@ func TestSesSendEmail() {
     sendRequest.Source = "example@example.com"
 
     sendRequest.Host.Domain = "amazonaws.com"
-    sendRequest.Key.Key, sendRequest.Key.SecretKey, _ = awsgo.GetSecurityKeys()
+    sendRequest.Key, _ = awsgo.GetSecurityKeys()
 
     resp, err := sendRequest.Request()
     fmt.Println(resp, err)
@@ -374,7 +374,7 @@ func TestPutMetric() {
 
     putMetricRequest.Host.Region = "us-west-2"
     putMetricRequest.Host.Domain = "amazonaws.com"
-    putMetricRequest.Key.Key, putMetricRequest.Key.SecretKey, _ = awsgo.GetSecurityKeys()
+    putMetricRequest.Key, _ = awsgo.GetSecurityKeys()
 
     resp, err := putMetricRequest.Request()
     fmt.Println(resp, err)

@@ -179,7 +179,7 @@ type AwsHost struct {
 
 type RequestBuilder struct {
     Host AwsHost                `json:"-"`
-    Key  AwsKeyPair             `json:"-"`
+    Key  Credentials             `json:"-"`
     Headers map[string]string `json:"-"`
     RequestMethod string               `json:"-"`
     CanonicalUri string         `json:"-"`
@@ -196,11 +196,11 @@ func (r * RequestBuilder) VerifyInput() (error) {
     if len(r.Host.Domain) == 0 {
         return errors.New("Host.Domain cannot be empty")
     }
-    if len(r.Key.Key) == 0 {
-        return errors.New("Key.Key cannot be empty")
+    if len(r.Key.AccessKeyId) == 0 {
+        return errors.New("Key.AccessKeyId cannot be empty")
     }
-    if len(r.Key.SecretKey) == 0 {
-        return errors.New("Key.Key cannot be empty")
+    if len(r.Key.SecretAccessKey) == 0 {
+        return errors.New("Key.AccessKeyId cannot be empty")
     }
     return nil
 }
@@ -268,18 +268,13 @@ func BuildReaderRequest(rb RequestBuilderInterface, r io.ReadCloser) (request Aw
     return request, nil
 }
 
-type AwsKeyPair struct {
-    Key string
-    SecretKey string
-}
-
 type AwsRequest struct {
     Host AwsHost
     Date time.Time
     Headers map[string]string
     Payload string
     PayloadReader io.ReadCloser
-    Key AwsKeyPair
+    Key Credentials
     RequestMethod string
     CanonicalUri string
     RequestSigningType int
@@ -321,6 +316,9 @@ func (req * AwsRequest) SendRequest() (string, map[string]string, int, error) {
     req.Headers["Host"] = strings.ToLower(req.Host.ToString())
     req.Headers["user-agent"] = "go-aws-client-0.1"
     req.Headers["x-amz-date"] = IsoDate(req.Date)
+    if req.Key.Token != "" {
+        req.Headers["x-amz-security-token"] = req.Key.Token
+    }
 
     if req.RequestSigningType == RequestSigningType_AWS4 {
         req.CreateSignature(true)
@@ -405,11 +403,11 @@ func (req * AwsRequest) CreateRestSignature() {
         req.RequestMethod, payloadHash, req.Headers["Content-Type"], "" /*old school date*/,
         canonicalHeaders, canonicalResource)
 
-    hmacHasher := hmac.New(CreateHMacHasher1, []byte(req.Key.SecretKey))
+    hmacHasher := hmac.New(CreateHMacHasher1, []byte(req.Key.SecretAccessKey))
     hmacHasher.Write([]byte(stringToSign))
 
     signature := base64.StdEncoding.EncodeToString(hmacHasher.Sum(nil))
-    authorization := fmt.Sprintf("AWS %s:%s", req.Key.Key, signature)
+    authorization := fmt.Sprintf("AWS %s:%s", req.Key.AccessKeyId, signature)
     req.Headers["Authorization"] = authorization
 }
 
@@ -492,7 +490,7 @@ func (req * AwsRequest) CreateSignature(calcEmptyHash bool) {
     //fmt.Println("String To Sign:", stringToSign)
 
     hasher.Reset()
-    hmacHasher := hmac.New(CreateHMacHasher256, []byte(fmt.Sprintf("AWS4%s", req.Key.SecretKey)))
+    hmacHasher := hmac.New(CreateHMacHasher256, []byte(fmt.Sprintf("AWS4%s", req.Key.SecretAccessKey)))
     hmacHasher.Write([]byte(SimpleDate(req.Date)))
     hmacDate := hmacHasher.Sum(nil)
 
@@ -514,14 +512,15 @@ func (req * AwsRequest) CreateSignature(calcEmptyHash bool) {
 
     req.Headers["Authorization"] =
         fmt.Sprintf("AWS4-HMAC-SHA256 Credential=%s/%s/%s/%s/aws4_request, SignedHeaders=%s, Signature=%s",
-            req.Key.Key, SimpleDate(req.Date), req.Host.Region, fixedService, signedHeaders, req.signature)
+            req.Key.AccessKeyId, SimpleDate(req.Date), req.Host.Region, fixedService, signedHeaders, req.signature)
 }
 
 
 
 type Credentials struct {
-    AccessKeyId string
+    AccessKeyId     string
     SecretAccessKey string
+    Token           string // used when you are using the IAM role. Otherwise should be empty
     Expiration time.Time
 }
 
@@ -583,17 +582,18 @@ func credentialsAreLocal() bool {
 
 /** Returns security credentials either from a JSON file 'awskeys.json' or
  * from AWS Metadata service
- * @return awskey, aws secret key, error
+ * @return credentials, error
  */
-func GetSecurityKeys() (string, string, error)  {
+func GetSecurityKeys() (finalCred Credentials, err error)  {
     if cachedCredentials.AccessKeyId == "" || cachedCredentials.Expiration.Unix() < time.Now().Unix() {
         credentialLock.Lock()
         defer credentialLock.Unlock()
         if cachedCredentials.AccessKeyId == "" || cachedCredentials.Expiration.Unix() < time.Now().Unix()  {
             if !credentialsAreLocal() {
-                role, err := determineSecurityRole()
+                var role string
+                role, err = determineSecurityRole()
                 if err != nil {
-                    return "", "", err
+                    return
                 }
                 credentialUrl := fmt.Sprintf("http://169.254.169.254/latest/meta-data/iam/security-credentials/%s", role)
                 credentialUri, _ := url.Parse(credentialUrl)
@@ -604,33 +604,39 @@ func GetSecurityKeys() (string, string, error)  {
                     ProtoMinor: 1,
                     Close: true,
                 }
-                resp, err := http.DefaultClient.Do(&hreq)
-                if err != nil {
-                    return "", "", errors.New("Failed to create HTTP Client")
+                resp, err2 := http.DefaultClient.Do(&hreq)
+                if err2 != nil {
+                    err = errors.New("Failed to create HTTP Client")
+                    return
                 }
                 if resp.StatusCode != 200 {
-                    return "", "", errors.New(fmt.Sprintf("Got Status code: %d", resp.StatusCode))
+                    err = errors.New(fmt.Sprintf("Got Status code: %d", resp.StatusCode))
+                    return
                 }
                 buf := bytes.NewBuffer(make([]byte, 0))
                 io.Copy(buf, resp.Body)
 
                 var credentials CredentialMetaData
                 if err = json.Unmarshal([]byte(buf.String()), &credentials); err != nil {
-                    return "", "", err
+                    return
                 }
 
                 if credentials.Code != "Success" {
-                    return "", "", errors.New("Failed to get security keys")
+                    err = errors.New("Failed to get security keys")
+                    return
                 }
 
                 var tmp Credentials
                 tmp.AccessKeyId = credentials.AccessKeyId
                 tmp.SecretAccessKey = credentials.SecretAccessKey
                 tmp.Expiration, _ = time.Parse("2011-07-11T19:55:29.611Z", credentials.Expiration)
+                tmp.Token = credentials.Token
                 cachedCredentials = tmp
             }
         }
     }
-    return cachedCredentials.AccessKeyId, cachedCredentials.SecretAccessKey, nil
+    finalCred = cachedCredentials
+    err = nil
+    return 
 }
 

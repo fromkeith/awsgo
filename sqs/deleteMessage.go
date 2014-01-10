@@ -54,8 +54,8 @@ func NewDeleteMessageRequest() *DeleteMessageRequest {
     req.Host.Service = "sqs"
     req.Host.Region = ""
     req.Host.Domain = ""
-    req.Key.Key = ""
-    req.Key.SecretKey = ""
+    req.Key.AccessKeyId = ""
+    req.Key.SecretAccessKey = ""
     req.Headers = make(map[string]string)
     req.RequestMethod = "GET"
     req.CanonicalUri = "/"

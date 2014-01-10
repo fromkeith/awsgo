@@ -62,7 +62,7 @@ func SimpleKeyValueMetric(name string, value float64, unit string, namespace str
     putMetricRequest.Host.Domain = "amazonaws.com"
 
     if sendOnThisThread {
-        putMetricRequest.Key.Key, putMetricRequest.Key.SecretKey, _ = awsgo.GetSecurityKeys()
+        putMetricRequest.Key, _ = awsgo.GetSecurityKeys()
         _, err := putMetricRequest.Request()
         return err
     } else {
@@ -101,7 +101,7 @@ func MultiKeyValueMetrics(name []string, value []float64, unit []string, namespa
 
 
     if sendOnThisThread {
-        putMetricRequest.Key.Key, putMetricRequest.Key.SecretKey, _ = awsgo.GetSecurityKeys()
+        putMetricRequest.Key, _ = awsgo.GetSecurityKeys()
         _, err := putMetricRequest.Request()
         return err
     } else {
@@ -124,7 +124,7 @@ func CreateOffThreadSender() {
     go func () {
         for {
             putMetricRequest := <- offThreadSendChannel
-            putMetricRequest.Key.Key, putMetricRequest.Key.SecretKey, _ = awsgo.GetSecurityKeys()
+            putMetricRequest.Key, _ = awsgo.GetSecurityKeys()
             putMetricRequest.Request()
         }
     }()

@@ -109,8 +109,8 @@ func NewPutMetricRequest() *PutMetricRequest {
     req.Host.Service = "monitoring"
     req.Host.Region = ""
     req.Host.Domain = ""
-    req.Key.Key = ""
-    req.Key.SecretKey = ""
+    req.Key.AccessKeyId = ""
+    req.Key.SecretAccessKey = ""
     req.Headers = make(map[string]string)
     req.RequestMethod = "GET"
     req.CanonicalUri = "/"

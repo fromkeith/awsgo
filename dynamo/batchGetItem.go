@@ -82,8 +82,8 @@ func NewBatchGetItemRequest() *BatchGetItemRequest {
     req.Host.Service = ""
     req.Host.Region = ""
     req.Host.Domain = ""
-    req.Key.Key = ""
-    req.Key.SecretKey = ""
+    req.Key.AccessKeyId = ""
+    req.Key.SecretAccessKey = ""
     return req
 }
 

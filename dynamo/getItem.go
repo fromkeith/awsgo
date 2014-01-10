@@ -76,8 +76,8 @@ func NewGetItemRequest() *GetItemRequest {
     req.Host.Service = "dynamodb"
     req.Host.Region = ""
     req.Host.Domain = ""
-    req.Key.Key = ""
-    req.Key.SecretKey = ""
+    req.Key.AccessKeyId = ""
+    req.Key.SecretAccessKey = ""
     req.Headers = make(map[string]string)
     req.Headers["X-Amz-Target"] = GetItemTarget
     req.RequestMethod = "POST"
