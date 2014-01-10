@@ -555,7 +555,7 @@ type CredentialMetaData struct {
     LastUpdated string
     Type string
     AccessKeyId string
-    SecrectAccessKey string
+    SecretAccessKey string
     Token string
     Expiration string
 }
@@ -625,7 +625,7 @@ func GetSecurityKeys() (string, string, error)  {
 
                 var tmp Credentials
                 tmp.AccessKeyId = credentials.AccessKeyId
-                tmp.SecretAccessKey = credentials.SecrectAccessKey
+                tmp.SecretAccessKey = credentials.SecretAccessKey
                 tmp.Expiration, _ = time.Parse("2011-07-11T19:55:29.611Z", credentials.Expiration)
                 cachedCredentials = tmp
             }
