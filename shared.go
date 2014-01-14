@@ -200,7 +200,7 @@ func (r * RequestBuilder) VerifyInput() (error) {
         return errors.New("Key.AccessKeyId cannot be empty")
     }
     if len(r.Key.SecretAccessKey) == 0 {
-        return errors.New("Key.AccessKeyId cannot be empty")
+        return errors.New("Key.SecretAccessKey cannot be empty")
     }
     return nil
 }
@@ -629,7 +629,7 @@ func GetSecurityKeys() (finalCred Credentials, err error)  {
                 var tmp Credentials
                 tmp.AccessKeyId = credentials.AccessKeyId
                 tmp.SecretAccessKey = credentials.SecretAccessKey
-                tmp.Expiration, _ = time.Parse("2011-07-11T19:55:29.611Z", credentials.Expiration)
+                tmp.Expiration, _ = time.Parse("2006-01-02T15:04:05Z", credentials.Expiration)
                 tmp.Token = credentials.Token
                 cachedCredentials = tmp
             }
