@@ -29,6 +29,7 @@
  */
 package sqs
 
+
 import (
     "github.com/fromkeith/awsgo"
     "errors"
@@ -37,52 +38,21 @@ import (
     "encoding/xml"
 )
 
-const (
-    SQS_RECEIVE_ATTR_NAME_All = "All"
-    SQS_RECEIVE_ATTR_NAME_SenderId = "SenderId"
-    SQS_RECEIVE_ATTR_NAME_SentTimestamp = "SentTimestamp"
-    SQS_RECEIVE_ATTR_NAME_ReceiveCount = "ApproximateReceiveCount"
-    SQS_RECEIVE_ATTR_NAME_FirstReceiveTime = "ApproximateFirstReceiveTimestamp"
-)
-
-
-type ReceiveMessageRequest struct {
+type ChangeMessageVisibilityRequest struct {
     awsgo.RequestBuilder
 
-    AttributeName string
-    MaxNumberOfMessages int
+    ReceiptHandle string
     VisibilityTimeout int
-    WaitTimeSeconds int
     TaskQueue string
 }
 
-type SqsAttributes struct {
-    Name string
-    Value string
-}
-
-type RecieveMessageResultMessage struct {
-    MessageId string
-    ReceiptHandle string
-    MD5OfBody string
-    Body string
-    Attribute []SqsAttributes
-    AttributeMap map[string]string
-}
-type ReceiveMessageResult struct {
-    Message RecieveMessageResultMessage
-}
-type ReceiveMessageResponse struct {
-    ReceiveMessageResult ReceiveMessageResult
+type ChangeMessageVisibilityResponse struct {
     ResponseMetadata awsgo.ResponseMetaData
 }
 
 
-func NewReceiveMessageRequest() *ReceiveMessageRequest {
-    req := new(ReceiveMessageRequest)
-    req.MaxNumberOfMessages = 1
-    req.VisibilityTimeout = -1
-    req.WaitTimeSeconds = -1
+func NewChangeMessageVisibilityRequest() *ChangeMessageVisibilityRequest {
+    req := new(ChangeMessageVisibilityRequest)
     req.Host.Service = "sqs"
     req.Host.Region = ""
     req.Host.Domain = ""
@@ -94,7 +64,7 @@ func NewReceiveMessageRequest() *ReceiveMessageRequest {
     return req
 }
 
-func (gir * ReceiveMessageRequest) VerifyInput() (error) {
+func (gir * ChangeMessageVisibilityRequest) VerifyInput() (error) {
     gir.Host.Service = "sqs"
     if len(gir.Host.Region) == 0 {
         return errors.New("Host.Region cannot be empty")
@@ -105,54 +75,37 @@ func (gir * ReceiveMessageRequest) VerifyInput() (error) {
 
     gir.CanonicalUri = fmt.Sprintf("%s?Action=%s&Version=%s",
         gir.TaskQueue,
-        url.QueryEscape("ReceiveMessage"),
+        url.QueryEscape("ChangeMessageVisibility"),
         url.QueryEscape("2012-11-05"),
     )
-    if gir.AttributeName != "" {
-        gir.CanonicalUri = fmt.Sprintf("%s&AttributeName=%s",
-            gir.CanonicalUri,
-            url.QueryEscape(gir.AttributeName),
-        )
+    if gir.ReceiptHandle == "" {
+        return errors.New("ReceiptHandle cannot be empty")
     }
-    if gir.MaxNumberOfMessages != -1 {
-        gir.CanonicalUri = fmt.Sprintf("%s&MaxNumberOfMessages=%d",
-            gir.CanonicalUri,
-            gir.MaxNumberOfMessages,
-        )
+    if gir.VisibilityTimeout <= 0 {
+        return errors.New("VisibilityTimeout must be a positive integer")
     }
-    if gir.VisibilityTimeout != -1 {
-        gir.CanonicalUri = fmt.Sprintf("%s&VisibilityTimeout=%d",
-            gir.CanonicalUri,
-            gir.VisibilityTimeout,
-        )
-    }
-    if gir.WaitTimeSeconds != -1 {
-        gir.CanonicalUri = fmt.Sprintf("%s&WaitTimeSeconds=%d",
-            gir.CanonicalUri,
-            gir.WaitTimeSeconds,
-        )
-    }
+    gir.CanonicalUri = fmt.Sprintf("%s&ReceiptHandle=%s&VisibilityTimeout=%d",
+        gir.CanonicalUri,
+        url.QueryEscape(gir.ReceiptHandle),
+        gir.VisibilityTimeout,
+    )
     return gir.RequestBuilder.VerifyInput()
 }
 
-func (gir ReceiveMessageRequest) DeMarshalGetItemResponse(response []byte, headers map[string]string) (interface{}) {
+func (gir ChangeMessageVisibilityRequest) DeMarshalGetItemResponse(response []byte, headers map[string]string) (interface{}) {
     if err := awsgo.CheckForErrorXml(response); err != nil {
         return err
     }
-    giResponse := new(ReceiveMessageResponse)
+    giResponse := new(ChangeMessageVisibilityResponse)
+    //fmt.Println(string(response))
     err := xml.Unmarshal(response, giResponse)
     if err != nil {
         return err
     }
-    giResponse.ReceiveMessageResult.Message.AttributeMap = make(map[string]string)
-    for i := range giResponse.ReceiveMessageResult.Message.Attribute {
-        attr := giResponse.ReceiveMessageResult.Message.Attribute[i]
-        giResponse.ReceiveMessageResult.Message.AttributeMap[attr.Name] = attr.Value
-    }
     return giResponse
 }
 
-func (gir ReceiveMessageRequest) Request() (*ReceiveMessageResponse, error) {    
+func (gir ChangeMessageVisibilityRequest) Request() (*ChangeMessageVisibilityResponse, error) {    
     request, err := awsgo.BuildEmptyContentRequest(&gir)
     if err != nil {
         return nil, err
@@ -162,5 +115,5 @@ func (gir ReceiveMessageRequest) Request() (*ReceiveMessageResponse, error) {
     if resp == nil {
         return nil, err
     }
-    return resp.(*ReceiveMessageResponse), err
+    return resp.(*ChangeMessageVisibilityResponse), err
 }
