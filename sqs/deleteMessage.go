@@ -91,7 +91,7 @@ func (gir DeleteMessageRequest) DeMarshalGetItemResponse(response []byte, header
         return err
     }
     giResponse := new(DeleteMessageResponse)
-    fmt.Println(string(response))
+    //fmt.Println(string(response))
     err := xml.Unmarshal(response, giResponse)
     if err != nil {
         return err

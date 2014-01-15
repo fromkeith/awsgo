@@ -340,7 +340,7 @@ func (req * AwsRequest) SendRequest() (string, map[string]string, int, error) {
     } else {
         urlStr = fmt.Sprintf("https://%s.%s.%s%s", req.Host.Service, req.Host.Region, req.Host.Domain, req.CanonicalUri)
     }
-    fmt.Println(urlStr)
+    //fmt.Println(urlStr)
 
     url, err := url.Parse(urlStr)
     if err != nil {
@@ -368,6 +368,8 @@ func (req * AwsRequest) SendRequest() (string, map[string]string, int, error) {
     if err != nil {
         return "", nil, 0, err
     }
+    defer resp.Body.Close()
+
     var responseContent []byte
     if resp.ContentLength > 0 {
         responseContent = make([]byte, resp.ContentLength)
@@ -541,11 +543,13 @@ func determineSecurityRole() (string, error) {
     if err != nil {
         return "", errors.New("Failed to create HTTP Client")
     }
-    if resp.StatusCode != 200 {
-        return "", errors.New(fmt.Sprintf("Got Status code: %d", resp.StatusCode))
-    }
+    defer resp.Body.Close()
     buf := bytes.NewBuffer(make([]byte, 0))
     io.Copy(buf, resp.Body)
+
+    if resp.StatusCode != 200 {
+        return "", errors.New(fmt.Sprintf("Got Status code: %d", resp.StatusCode))
+    }    
     return buf.String(), nil
 }
 
@@ -609,12 +613,15 @@ func GetSecurityKeys() (finalCred Credentials, err error)  {
                     err = errors.New("Failed to create HTTP Client")
                     return
                 }
+                defer resp.Body.Close()
+
+                buf := bytes.NewBuffer(make([]byte, 0))
+                io.Copy(buf, resp.Body)
+
                 if resp.StatusCode != 200 {
                     err = errors.New(fmt.Sprintf("Got Status code: %d", resp.StatusCode))
                     return
                 }
-                buf := bytes.NewBuffer(make([]byte, 0))
-                io.Copy(buf, resp.Body)
 
                 var credentials CredentialMetaData
                 if err = json.Unmarshal([]byte(buf.String()), &credentials); err != nil {

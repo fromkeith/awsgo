@@ -93,7 +93,7 @@ func (gir SendMessageRequest) DeMarshalGetItemResponse(response []byte, headers 
         return err
     }
     giResponse := new(SendMessageResponse)
-    fmt.Println(string(response))
+    //fmt.Println(string(response))
     err := xml.Unmarshal(response, giResponse)
     if err != nil {
         return err

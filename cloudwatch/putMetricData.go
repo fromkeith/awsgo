@@ -183,7 +183,7 @@ func (gir * PutMetricRequest) VerifyInput() (error) {
 
 func (gir PutMetricRequest) DeMarshalGetItemResponse(response []byte, headers map[string]string) (interface{}) {
     giResponse := new(PutMetricResponse)
-    fmt.Println(string(response))
+    //fmt.Println(string(response))
     xml.Unmarshal(response, giResponse)
     //json.Unmarshal([]byte(response), giResponse)
     return giResponse
