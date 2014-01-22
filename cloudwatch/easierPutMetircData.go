@@ -33,11 +33,42 @@ import (
     "github.com/fromkeith/awsgo"
     "time"
     "errors"
+    "fmt"
 )
 
 
 
 var offThreadSendChannel chan *PutMetricRequest
+
+
+
+type timedEvent struct {
+    startTime time.Time
+    name string
+    namespace string
+    onThisThread bool
+}
+
+func NewTimedEvent(name, namespace string, onThisThread bool) timedEvent {
+    return timedEvent{
+        time.Now(),
+        name,
+        namespace,
+        onThisThread,
+    }
+}
+
+func (t timedEvent) Report() {
+    SimpleKeyValueMetric(
+        t.name,
+        float64(float64(time.Now().Sub(t.startTime).Nanoseconds()) / float64(time.Millisecond)),
+        UNIT_MILLISECONDS,
+        t.namespace,
+        t.onThisThread,
+    )
+}
+
+
 
 /**
  * Creates a single metric and posts it.
@@ -119,13 +150,20 @@ func MultiKeyValueMetrics(name []string, value []float64, unit []string, namespa
  */
 func CreateOffThreadSender() {
     if offThreadSendChannel == nil {
-        offThreadSendChannel = make(chan *PutMetricRequest)
+        // have a bigish buffer so we actaully are not blocking
+        offThreadSendChannel = make(chan *PutMetricRequest, 500)
     }
     go func () {
         for {
             putMetricRequest := <- offThreadSendChannel
+            if putMetricRequest == nil {
+                break
+            }
             putMetricRequest.Key, _ = awsgo.GetSecurityKeys()
-            putMetricRequest.Request()
+            _, err := putMetricRequest.Request()
+            if err != nil {
+                fmt.Println(err)
+            }
         }
     }()
 }
