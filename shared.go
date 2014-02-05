@@ -371,16 +371,13 @@ func (req * AwsRequest) SendRequest() (string, map[string]string, int, error) {
     defer resp.Body.Close()
 
     var responseContent []byte
-    if resp.ContentLength > 0 {
-        responseContent = make([]byte, resp.ContentLength)
-        resp.Body.Read(responseContent)
-    } else if resp.ContentLength == -1 {
-        buf := bytes.NewBuffer(make([]byte, 0))
-        if _, err = io.Copy(buf, resp.Body); err != nil {
-            fmt.Println("Failed to copy part of upload", err);
-        }
-        responseContent = []byte(buf.String())
+
+    buf := bytes.NewBuffer(make([]byte, 0))
+    if _, err = io.Copy(buf, resp.Body); err != nil {
+        fmt.Println("Failed to copy part of response", err);
     }
+    responseContent = []byte(buf.String())
+
     responseHeaders := make(map[string]string)
     for k, v := range resp.Header {
         responseHeaders[strings.ToLower(k)] = strings.Join(v, ";")

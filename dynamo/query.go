@@ -33,6 +33,7 @@ import (
     "github.com/fromkeith/awsgo"
     "errors"
     "encoding/json"
+    "fmt"
 )
 
 type KeyConditions struct {
@@ -108,6 +109,7 @@ func (gir QueryRequest) DeMarshalGetItemResponse(response []byte, headers map[st
     giResponse := new(QueryResponse)
     err := json.Unmarshal([]byte(response), giResponse)
     if err != nil {
+        fmt.Println("Error unmarshalling query response!", string(response))
         return err
     }
 

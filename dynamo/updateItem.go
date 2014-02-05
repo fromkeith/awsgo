@@ -117,6 +117,19 @@ func (pir * UpdateItemRequest) VerifyInput() (error) {
     if len(pir.Host.Region) == 0 {
         return errors.New("Host.Region cannot be empty")
     }
+    for k, v := range pir.UpdateKey {
+        switch j := v.(type) {
+            case string:
+                pir.UpdateKey[k] = awsgo.NewStringItem(j)
+                break
+            case float64:
+            case int:
+            case int64:
+            case float32:
+                pir.UpdateKey[k] = awsgo.NewNumberItem(float64(j))
+                break
+        }
+    }
     return pir.RequestBuilder.VerifyInput()
 }
 func (pir UpdateItemRequest) CoRequest() (*UpdateItemResponseFuture, error) {

@@ -96,6 +96,17 @@ func (gir * GetItemRequest) VerifyInput() (error) {
     if len(gir.Host.Region) == 0 {
         return errors.New("Host.Region cannot be empty")
     }
+    // repair any errors, like if you put a string, instead of an awsgo String item
+    for k, v := range(gir.Search) {
+        switch j := v.(type) {
+            case string:
+                gir.Search[k] = awsgo.NewStringItem(j)
+                break
+            case float64:
+                gir.Search[k] = awsgo.NewNumberItem(j)
+                break
+        }
+    }
     return gir.RequestBuilder.VerifyInput()
 }
 
