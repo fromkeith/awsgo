@@ -95,6 +95,13 @@ func (gir * BatchGetItemRequest) VerifyInput() (error) {
     if len(gir.Host.Region) == 0 {
         return errors.New("Host.Region cannot be empty")
     }
+    for _, reqTable := range gir.RequestItems {
+        for s := range reqTable.Search {
+            for k, v := range reqTable.Search[s] {
+                reqTable.Search[s][k] = awsgo.ConvertToAwsItem(v)
+            }
+        }
+    }
     return gir.RequestBuilder.VerifyInput()
 }
 /*
@@ -126,7 +133,7 @@ func (gir BatchGetItemRequest) DeMarshalGetItemResponse(response []byte, headers
         giResponse.Responses[key] = make([]map[string]interface{}, len(val))
         for i := range val {
             giResponse.Responses[key][i] = make(map[string]interface{})
-            awsgo.FromRawMapToAwsItemMap(val[i], giResponse.Responses[key][i])
+            awsgo.FromRawMapToEasyTypedMap(val[i], giResponse.Responses[key][i])
         }
     }
     // RawUnprocessed, including Search: map[string]{Search}[]map[string]map[string]string
@@ -137,7 +144,7 @@ func (gir BatchGetItemRequest) DeMarshalGetItemResponse(response []byte, headers
         c.Search = make([]map[string]interface{}, len(val.Search))
         for i := range val.Search {
             c.Search[i] = make(map[string]interface{})
-            awsgo.FromRawMapToAwsItemMap(val.Search[i], c.Search[i])
+            awsgo.FromRawMapToEasyTypedMap(val.Search[i], c.Search[i])
         }
         giResponse.UnprocessedKeys[key] = c
     }

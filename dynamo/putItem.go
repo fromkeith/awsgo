@@ -101,6 +101,12 @@ func (pir * PutItemRequest) VerifyInput() (error) {
     if len(pir.Host.Region) == 0 {
         return errors.New("Host.Region cannot be empty")
     }
+    for k, v := range pir.Item {
+        pir.Item[k] = awsgo.ConvertToAwsItem(v)
+    }
+    for k, v := range pir.Expected {
+        pir.Expected[k] = ExpectedItem{v.Exists, awsgo.ConvertToAwsItem(v.Value)}
+    }
     return pir.RequestBuilder.VerifyInput()
 }
 func (pir PutItemRequest) CoRequest() (*PutItemResponseFuture, error) {
@@ -126,7 +132,7 @@ func (pir PutItemRequest) DeMarshalGetItemResponse(response []byte, headers map[
     }
     if len(piResponse.RawBeforeAttributes) > 0 {
         piResponse.BeforeAttributes = make(map[string]interface{})
-        awsgo.FromRawMapToAwsItemMap(piResponse.RawBeforeAttributes, piResponse.BeforeAttributes)
+        awsgo.FromRawMapToEasyTypedMap(piResponse.RawBeforeAttributes, piResponse.BeforeAttributes)
     }
     return piResponse
 }

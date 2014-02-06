@@ -98,14 +98,7 @@ func (gir * GetItemRequest) VerifyInput() (error) {
     }
     // repair any errors, like if you put a string, instead of an awsgo String item
     for k, v := range(gir.Search) {
-        switch j := v.(type) {
-            case string:
-                gir.Search[k] = awsgo.NewStringItem(j)
-                break
-            case float64:
-                gir.Search[k] = awsgo.NewNumberItem(j)
-                break
-        }
+        gir.Search[k] = awsgo.ConvertToAwsItem(v)
     }
     return gir.RequestBuilder.VerifyInput()
 }
@@ -132,7 +125,7 @@ func (gir GetItemRequest) DeMarshalGetItemResponse(response []byte, headers map[
         return err
     }
     giResponse.Item = make(map[string]interface{})
-    awsgo.FromRawMapToAwsItemMap(giResponse.RawItem, giResponse.Item)
+    awsgo.FromRawMapToEasyTypedMap(giResponse.RawItem, giResponse.Item)
     return giResponse
 }
 

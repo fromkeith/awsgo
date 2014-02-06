@@ -99,6 +99,11 @@ func (gir * QueryRequest) VerifyInput() (error) {
     if len(gir.TableName) == 0 {
         return errors.New("TableName cannot be empty")
     }
+    for _, condition := range gir.KeyConditions {
+        for i := range condition.AttributeValueList {
+            condition.AttributeValueList[i] = awsgo.ConvertToAwsItem(condition.AttributeValueList[i])
+        }
+    }
     return gir.RequestBuilder.VerifyInput()
 }
 
@@ -116,14 +121,14 @@ func (gir QueryRequest) DeMarshalGetItemResponse(response []byte, headers map[st
     giResponse.Items = make([]map[string]interface{}, len(giResponse.RawItems))
     for i := range giResponse.RawItems {
         giResponse.Items[i] = make(map[string]interface{})
-        awsgo.FromRawMapToAwsItemMap(giResponse.RawItems[i], giResponse.Items[i])  
+        awsgo.FromRawMapToEasyTypedMap(giResponse.RawItems[i], giResponse.Items[i])
     }
     giResponse.LastEvaluatedKey = make(map[string]interface{})
-    awsgo.FromRawMapToAwsItemMap(giResponse.RawLastEvaluatedKey, giResponse.LastEvaluatedKey)
+    awsgo.FromRawMapToEasyTypedMap(giResponse.RawLastEvaluatedKey, giResponse.LastEvaluatedKey)
     return giResponse
 }
 
-func (gir QueryRequest) Request() (*QueryResponse, error) {    
+func (gir QueryRequest) Request() (*QueryResponse, error) {
     request, err := awsgo.BuildRequest(&gir, gir)
     if err != nil {
         return nil, err

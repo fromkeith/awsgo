@@ -53,7 +53,7 @@ const (
 
 func TestGetItem() {
     itemRequest := dynamo.NewGetItemRequest()
-    itemRequest.Search[TEST_ITEM_NAME] = awsgo.NewStringItem("e5dd6f4d-5c80-4069-817e-646372bf5f74")
+    itemRequest.Search[TEST_ITEM_NAME] = "e5dd6f4d-5c80-4069-817e-646372bf5f74"
     itemRequest.TableName = TEST_TABLE_NAME
     itemRequest.AttributesToGet = []string{"Num", "NumArray", "String", "StringArray"}
 
@@ -74,47 +74,35 @@ func TestGetItem() {
     }
     s := resp.Item["String"]
     switch itemCast := s.(type) {
-    case awsgo.AwsStringItem:
-        if itemCast.Values != nil {
-            panic("Values should be nil")
-        }
-        fmt.Println(itemCast.Value)
+    case string:
+        fmt.Println(itemCast)
     default:
         panic(fmt.Sprintf("Unexpected type: %T", itemCast))
     }
     ss := resp.Item["StringArray"]
     switch itemCast := ss.(type) {
-    case awsgo.AwsStringItem:
-        if itemCast.Values == nil {
-            panic("Values should not be nil")
+    case []string:
+        if len(itemCast) != 3 {
+            panic(fmt.Sprintf("Values should have 3 items, got %d", len(itemCast)))
         }
-        if len(itemCast.Values) != 3 {
-            panic(fmt.Sprintf("Values should have 3 items, got %d", len(itemCast.Values)))
-        }
-        fmt.Println(itemCast.Values)
+        fmt.Println(itemCast)
     default:
         panic(fmt.Sprintf("Unexpected type: %T", itemCast))
     }
     n := resp.Item["Num"]
     switch itemCast := n.(type) {
-    case awsgo.AwsNumberItem:
-        if itemCast.Values != nil {
-            panic("Values should be nil")
-        }
-        fmt.Println(itemCast.Value)
+    case float64:
+        fmt.Println(itemCast)
     default:
         panic(fmt.Sprintf("Unexpected type: %T", itemCast))
     }
     nn := resp.Item["NumArray"]
     switch itemCast := nn.(type) {
-    case awsgo.AwsNumberItem:
-        if itemCast.Values == nil {
-            panic("Values should not be nil")
+    case []float64:
+        if len(itemCast) != 3 {
+            panic(fmt.Sprintf("Values should have 3 items, got %d", len(itemCast)))
         }
-        if len(itemCast.Values) != 3 {
-            panic(fmt.Sprintf("Values should have 3 items, got %d", len(itemCast.Values)))
-        }
-        fmt.Println(itemCast.Values)
+        fmt.Println(itemCast)
     default:
         panic(fmt.Sprintf("Unexpected type: %T", itemCast))
     }
@@ -122,7 +110,7 @@ func TestGetItem() {
 
 func TestUpdateItem() {
     itemRequest := dynamo.NewUpdateItemRequest()
-    itemRequest.UpdateKey[TEST_ITEM_NAME] = awsgo.NewStringItem("e5dd6f4d-5c80-4069-817e-646372bf5f74")
+    itemRequest.UpdateKey[TEST_ITEM_NAME] = "e5dd6f4d-5c80-4069-817e-646372bf5f74"
     rand.Seed(time.Now().Unix())
     newName := fmt.Sprintf("%d", rand.Int())
     itemRequest.Update["GameName"] = dynamo.AttributeUpdates{"PUT", awsgo.NewStringItem(newName)}
@@ -139,13 +127,10 @@ func TestUpdateItem() {
         fmt.Printf("WasError %T %v \n", err, err)
         return
     }
-    
+
     switch itemCast := resp.BeforeAttributes["GameName"].(type) {
-    case awsgo.AwsStringItem:
-        if itemCast.Values != nil {
-            panic("Values should be nil")
-        }
-        if itemCast.Value != newName {
+    case string:
+        if itemCast != newName {
             panic("Updated value was not updated!")
         }
     default:
@@ -156,7 +141,7 @@ func TestUpdateItem() {
 
 func TestPutItem() {
     itemRequest := dynamo.NewPutItemRequest()
-    itemRequest.Item[TEST_ITEM_NAME] = awsgo.NewStringItem("helloThere!")
+    itemRequest.Item[TEST_ITEM_NAME] = "helloThere!"
     itemRequest.TableName = TEST_TABLE_NAME
     itemRequest.ReturnValues = dynamo.ReturnValues_ALL_OLD
 
@@ -177,7 +162,7 @@ func TestBatchGetItem() {
     tableReq := dynamo.NewBatchGetIteamRequestTable()
     tableReq.Search = make([]map[string]interface{}, 1)
     tableReq.Search[0] = make(map[string]interface{})
-    tableReq.Search[0][TEST_ITEM_NAME] = awsgo.NewStringItem("e5dd6f4d-5c80-4069-817e-646372bf5f74")
+    tableReq.Search[0][TEST_ITEM_NAME] = "e5dd6f4d-5c80-4069-817e-646372bf5f74"
     tableReq.AttributesToGet = []string{"GameName"}
     itemRequest.RequestItems[TEST_TABLE_NAME] = tableReq
 
@@ -198,8 +183,8 @@ func testBatchWriteItem_Put(keys []string) {
     for i := range keys {
         itemRequest.AddPutRequest(TEST_TABLE_NAME,
             map[string]interface{}{
-                TEST_ITEM_NAME : awsgo.NewStringItem(keys[i]),
-                "GameName" : awsgo.NewStringItem("gg"),
+                TEST_ITEM_NAME : keys[i],
+                "GameName" : "gg",
             })
     }
     itemRequest.Host.Region = "us-west-2"
@@ -218,7 +203,7 @@ func testBatchWriteItem_Delete(keys []string) {
     for i := range keys {
         itemRequest.AddDeleteRequest(TEST_TABLE_NAME,
             map[string]interface{}{
-                TEST_ITEM_NAME : awsgo.NewStringItem(keys[i]),
+                TEST_ITEM_NAME : keys[i],
             })
     }
     itemRequest.Host.Region = "us-west-2"
@@ -261,7 +246,7 @@ func TestQuery() {
     req := dynamo.NewQueryRequest()
     req.AddKeyCondition(TEST_ITEM_NAME,
         []interface{}{
-            awsgo.NewStringItem("test4"),
+            "test4",
         },
         dynamo.ComparisonOperator_EQ)
     req.Select = dynamo.Select_ALL_ATTRIBUTES
@@ -382,11 +367,12 @@ func TestPutMetric() {
 
 
 func main() {
-    //TestGetItem()
-    //TestUpdateItem()
-    //TestPutItem()
-    //TestBatchGetItem()
-    //TestBatchWriteItem()
+
+    TestGetItem()
+    TestUpdateItem()
+    TestPutItem()
+    TestBatchGetItem()
+    TestBatchWriteItem()
     TestQuery()
     //TestPutS3File()
     //TestSqsSendMessage()

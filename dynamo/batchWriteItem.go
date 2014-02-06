@@ -152,12 +152,12 @@ func (gir BatchWriteItemRequest) DeMarshalGetItemResponse(response []byte, heade
             if opName, ok := operations[op]["DeleteRequest"]; ok {
                 var del BatchWriteItemDeleteRequest
                 del.Key = make(map[string]interface{})
-                awsgo.FromRawMapToAwsItemMap(opName["Key"], del.Key)
+                awsgo.FromRawMapToEasyTypedMap(opName["Key"], del.Key)
                 giResponse.UnprocessedItems[table][op] = BatchWriteItem{DeleteRequest: &del}
             } else if opName, ok := operations[op]["PutRequest"]; ok {
                 var put BatchWriteItemPutRequest
                 put.Item = make(map[string]interface{})
-                awsgo.FromRawMapToAwsItemMap(opName["Item"], put.Item)
+                awsgo.FromRawMapToEasyTypedMap(opName["Item"], put.Item)
                 giResponse.UnprocessedItems[table][op] = BatchWriteItem{PutRequest: &put}
             }
         }
@@ -173,10 +173,24 @@ func (gir * BatchWriteItemRequest) VerifyInput() (error) {
     if len(gir.Host.Region) == 0 {
         return errors.New("Host.Region cannot be empty")
     }
+    for _, batchRequest := range gir.RequestItems {
+        for s := range batchRequest {
+            if batchRequest[s].DeleteRequest != nil {
+                for k, v := range batchRequest[s].DeleteRequest.Key {
+                    batchRequest[s].DeleteRequest.Key[k] = awsgo.ConvertToAwsItem(v)
+                }
+            }
+            if batchRequest[s].PutRequest != nil {
+                for k, v := range batchRequest[s].PutRequest.Item {
+                    batchRequest[s].PutRequest.Item[k] = awsgo.ConvertToAwsItem(v)
+                }
+            }
+        }
+    }
     return gir.RequestBuilder.VerifyInput()
 }
 
-func (gir BatchWriteItemRequest) Request() (*BatchWriteItemResponse, error) {    
+func (gir BatchWriteItemRequest) Request() (*BatchWriteItemResponse, error) {
     request, err := awsgo.BuildRequest(&gir, gir)
     if err != nil {
         return nil, err

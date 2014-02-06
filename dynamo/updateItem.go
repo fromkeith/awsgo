@@ -118,17 +118,13 @@ func (pir * UpdateItemRequest) VerifyInput() (error) {
         return errors.New("Host.Region cannot be empty")
     }
     for k, v := range pir.UpdateKey {
-        switch j := v.(type) {
-            case string:
-                pir.UpdateKey[k] = awsgo.NewStringItem(j)
-                break
-            case float64:
-            case int:
-            case int64:
-            case float32:
-                pir.UpdateKey[k] = awsgo.NewNumberItem(float64(j))
-                break
-        }
+        pir.UpdateKey[k] = awsgo.ConvertToAwsItem(v)
+    }
+    for k, v := range pir.Update {
+        pir.Update[k] = AttributeUpdates{v.Action, awsgo.ConvertToAwsItem(v.Value)}
+    }
+    for k, v := range pir.Expected {
+        pir.Expected[k] = ExpectedItem{v.Exists, awsgo.ConvertToAwsItem(v.Value)}
     }
     return pir.RequestBuilder.VerifyInput()
 }
@@ -155,7 +151,7 @@ func (pir UpdateItemRequest) DeMarshalGetItemResponse(response []byte, headers m
     }
     if len(piResponse.RawBeforeAttributes) > 0 {
         piResponse.BeforeAttributes = make(map[string]interface{})
-        awsgo.FromRawMapToAwsItemMap(piResponse.RawBeforeAttributes, piResponse.BeforeAttributes)
+        awsgo.FromRawMapToEasyTypedMap(piResponse.RawBeforeAttributes, piResponse.BeforeAttributes)
     }
     return piResponse
 }

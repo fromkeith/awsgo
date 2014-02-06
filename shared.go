@@ -96,51 +96,95 @@ func NewNumberItem(items ... float64) AwsNumberItem {
     }
     return s
 }
-func FromRawMapToAwsItemMap(raw map[string]map[string]interface{}, item map[string]interface{}) {
+
+
+/** Converts from an unknown interface... like:
+ *      string, []string, float, []float64
+ *  into the expected awsgo.AwsStringItem or awsgo.AwsNumberItem
+ */
+func ConvertToAwsItem(unknown interface{}) interface{} {
+    switch j := unknown.(type) {
+        case string:
+            return NewStringItem(j)
+            break
+        case float64:
+        case int:
+        case float32:
+        case int64:
+            return NewNumberItem(float64(j))
+            break
+        case []string:
+            return AwsStringItem{"", j}
+        case []int:
+        case []int64:
+        case []float32:
+            // we need to cast these over
+            vals64 := make([]float64, len(j))
+            for i := range j {
+                vals64[i] = float64(j[i])
+            }
+            return AwsNumberItem{0, vals64}
+        case []float64:
+            return AwsNumberItem{0, j}
+        case AwsNumberItem:
+        case AwsStringItem:
+            return j
+        default:
+            panic(fmt.Sprintf("Unknown data type: %v %T", j, j))
+            return j
+    }
+    return unknown
+}
+
+func FromRawMapToEasyTypedMap(raw map[string]map[string]interface{}, item map[string]interface{}) {
     for key, value := range raw {
         if v, ok := value["S"]; ok {
             switch t := v.(type) {
             case string:
-                item[key] = AwsStringItem{t, nil}
+                item[key] = t
                 break
+            default:
+                panic("Item map was type 'S' but did not have string content!")
             }
         }
         if v, ok := value["SS"]; ok {
-            switch t := v.(type) {
-            case []interface{}:
+            if t, ok := v.([]interface{}); ok {
                 vals := make([]string, len(t))
                 for i := range t {
-                    switch t2 := t[i].(type) {
-                    case string:
+                    if t2, ok := t[i].(string); ok {
                         vals[i] = t2
-                        break
+                    } else {
+                        panic(fmt.Sprintf("Expected string in SS but got: %T", t[i]))
                     }
                 }
-                item[key] = AwsStringItem{"", vals}
-                break
+                item[key] = vals
+            } else {
+                panic(fmt.Sprintf("Item map was type 'NS' but did not have []string content! (We expect it as string, but convert to []float). Got %T", t))
             }
         }
         if v, ok := value["N"]; ok {
             switch t := v.(type) {
             case string:
                 f, _ := strconv.ParseFloat(t, 64)
-                item[key] = AwsNumberItem{f, nil}
+                item[key] = f
                 break
+            default:
+                panic(fmt.Sprintf("Item map was type 'N' but did not have string content! (We expect it as string, but convert to float). Got %T", t))
             }
         }
         if v, ok := value["NS"]; ok {
-            switch t := v.(type) {
-            case []interface{}:
+            if t, ok := v.([]interface{}); ok {
                 nums := make([]float64, len(t))
                 for i := range t {
-                    switch t2 := t[i].(type) {
-                    case string:
+                    if t2, ok := t[i].(string); ok {
                         nums[i], _ = strconv.ParseFloat(t2, 64)
-                        break
+                    } else {
+                        panic(fmt.Sprintf("Expected string in NS but got: %T", t[i]))
                     }
                 }
-                item[key] = AwsNumberItem{0, nums}
-                break
+                item[key] = nums
+            } else {
+                panic(fmt.Sprintf("Item map was type 'NS' but did not have []string content! (We expect it as string, but convert to []float). Got %T", t))
             }
         }
     }
@@ -363,7 +407,6 @@ func (req * AwsRequest) SendRequest() (string, map[string]string, int, error) {
     } else if req.PayloadReader != nil {
         hreq.Body = req.PayloadReader
     }
-
     resp, err := http.DefaultClient.Do(&hreq)
     if err != nil {
         return "", nil, 0, err
@@ -383,7 +426,6 @@ func (req * AwsRequest) SendRequest() (string, map[string]string, int, error) {
         responseHeaders[strings.ToLower(k)] = strings.Join(v, ";")
     }
     //fmt.Println("Response", string(responseContent))
-
     return string(responseContent), responseHeaders, resp.StatusCode, nil
 }
 
