@@ -106,17 +106,30 @@ func ConvertToAwsItem(unknown interface{}) interface{} {
     switch j := unknown.(type) {
         case string:
             return NewStringItem(j)
-            break
         case float64:
+            return NewNumberItem(j)
         case int:
+            return NewNumberItem(float64(j))
         case float32:
+            return NewNumberItem(float64(j))
         case int64:
             return NewNumberItem(float64(j))
-            break
         case []string:
             return AwsStringItem{"", j}
         case []int:
+            // we need to cast these over
+            vals64 := make([]float64, len(j))
+            for i := range j {
+                vals64[i] = float64(j[i])
+            }
+            return AwsNumberItem{0, vals64}
         case []int64:
+            // we need to cast these over
+            vals64 := make([]float64, len(j))
+            for i := range j {
+                vals64[i] = float64(j[i])
+            }
+            return AwsNumberItem{0, vals64}
         case []float32:
             // we need to cast these over
             vals64 := make([]float64, len(j))
@@ -127,6 +140,7 @@ func ConvertToAwsItem(unknown interface{}) interface{} {
         case []float64:
             return AwsNumberItem{0, j}
         case AwsNumberItem:
+            return j
         case AwsStringItem:
             return j
         default:
@@ -402,7 +416,7 @@ func (req * AwsRequest) SendRequest() (string, map[string]string, int, error) {
         hreq.ContentLength, _ = strconv.ParseInt(val, 10, 64)
     }
     if req.Payload != "" {
-        //fmt.Println("Payload", req.Payload)
+        fmt.Println("Payload", req.Payload)
         hreq.Body = ioutil.NopCloser(bytes.NewBuffer([]byte(req.Payload)))
     } else if req.PayloadReader != nil {
         hreq.Body = req.PayloadReader
