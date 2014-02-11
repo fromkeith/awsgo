@@ -117,8 +117,8 @@ func (gir BatchGetItemRequest) CoRequest() (*GetItemResponseFuture, error) {
     return future, nil
 }*/
 
-func (gir BatchGetItemRequest) DeMarshalGetItemResponse(response []byte, headers map[string]string) (interface{}) {
-    if err := CheckForErrorResponse(response); err != nil {
+func (gir BatchGetItemRequest) DeMarshalResponse(response []byte, headers map[string]string, statusCode int) (interface{}) {
+    if err := CheckForErrorResponse(response, statusCode); err != nil {
         return err
     }
     giResponse := new(BatchGetItemResponse)

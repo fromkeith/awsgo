@@ -88,7 +88,7 @@ func (gir * SendMessageRequest) VerifyInput() (error) {
     return gir.RequestBuilder.VerifyInput()
 }
 
-func (gir SendMessageRequest) DeMarshalGetItemResponse(response []byte, headers map[string]string) (interface{}) {
+func (gir SendMessageRequest) DeMarshalResponse(response []byte, headers map[string]string, statusCode int) (interface{}) {
     if err := awsgo.CheckForErrorXml(response); err != nil {
         return err
     }

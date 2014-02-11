@@ -38,6 +38,7 @@ import (
 const (
     ConsumedCapacity_TOTAL = "TOTAL"
     ConsumedCapacity_NONE = "NONE"
+    ConsumedCapacity_INDEXES = "INDEXES"
 
     ReturnItemCollection_SIZE = "SIZE"
     ReturnItemCollection_NONE = "NONE"
@@ -65,7 +66,7 @@ const (
     Select_ALL_ATTRIBUTES = "ALL_ATTRIBUTES"
     Select_ALL_PROJECTED_ATTRIBUTES = "ALL_PROJECTED_ATTRIBUTES"
     Select_COUNT = "COUNT"
-    Select_SPECIFIC_ATTRIBUTES  = "SPECIFIC_ATTRIBUTES "
+    Select_SPECIFIC_ATTRIBUTES  = "SPECIFIC_ATTRIBUTES"
 )
 
 
@@ -82,12 +83,21 @@ const (
 const (
     ConditionalCheckFailed = "com.amazonaws.dynamodb.v20120810#ConditionalCheckFailedException"
     SerializationException = "com.amazon.coral.service#SerializationException"
+    ValidationException = "com.amazon.coral.validate#ValidationException"
+    UnknownServerError = "UnknownServerError"
+    AccessDeniedException = "com.amazon.coral.service#AccessDeniedException"
 )
 
+type CapacityUnitsStruct struct {
+    CapacityUnits   float64
+}
 
 type CapacityResult struct {
-    CapacityUnits int           `json:",string"`
-    TableName     string
+    CapacityUnits   float64
+    TableName       string
+    Table           *CapacityUnitsStruct
+    GlobalSecondaryIndexes  map[string]CapacityUnitsStruct
+    LocalSecondaryIndexes   map[string]CapacityUnitsStruct
 }
 
 type ExpectedItem struct {
@@ -105,19 +115,26 @@ type ItemCollectionMetricsStruct struct {
 type ErrorResult struct {
     Type        string  `json:"__type"`
     Message     string  `json:"message"`
+    StatusCode  int
 }
 
 func (e * ErrorResult) Error() string {
     return fmt.Sprintf("%s : %s", e.Type, e.Message)
 }
 
-func CheckForErrorResponse(response []byte) error {
+func CheckForErrorResponse(response []byte, statusCode int) error {
     errorResult := new(ErrorResult)
     err2 := json.Unmarshal([]byte(response), errorResult)
     if err2 == nil {
         if errorResult.Type != "" {
+            errorResult.StatusCode = statusCode
             return errorResult
         }
+    }
+    if statusCode < 200 || statusCode > 299 {
+        errorResult.Type = UnknownServerError
+        errorResult.StatusCode = statusCode
+        return errorResult
     }
     return nil
 }

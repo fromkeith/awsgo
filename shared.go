@@ -35,6 +35,7 @@ import (
     "crypto/md5"
     "crypto/sha1"
     "crypto/sha256"
+    "crypto/x509"
     "encoding/base64"
     "encoding/json"
     "encoding/xml"
@@ -49,8 +50,9 @@ import (
     "os"
     "strconv"
     "strings"
-    "time"
     "sync"
+    "time"
+    "crypto/tls"
 )
 
 const (
@@ -233,6 +235,7 @@ type AwsHost struct {
     Service string
     Region string
     Domain string
+    CustomCertificates []*x509.Certificate
 }
 
 type RequestBuilder struct {
@@ -247,18 +250,33 @@ type RequestBuilderInterface interface {
     VerifyInput() error
     CreateJsonAwsRequest(marsh interface{}) AwsRequest
     CreateReaderAwsRequest(r io.ReadCloser) AwsRequest
-    DeMarshalGetItemResponse([]byte, map[string]string) (interface{})
+    DeMarshalResponse(response []byte, headers map[string]string, statusCode int) (interface{})
 }
+
+
+type UnmarhsallingError struct {
+    ActualContent       string
+    MarshallError       error
+}
+func (e * UnmarhsallingError) Error() string {
+    return "Error unmarshalling response"
+}
+
+var (
+    Verification_Error_DomainEmpty = errors.New("Host.Domain cannot be empty")
+    Verification_Error_AccessKeyEmpty = errors.New("Key.AccessKeyId cannot be empty")
+    Verification_Error_SecretAccessKeyEmpty = errors.New("Key.SecretAccessKey cannot be empty")
+)
 
 func (r * RequestBuilder) VerifyInput() (error) {
     if len(r.Host.Domain) == 0 {
-        return errors.New("Host.Domain cannot be empty")
+        return Verification_Error_DomainEmpty
     }
     if len(r.Key.AccessKeyId) == 0 {
-        return errors.New("Key.AccessKeyId cannot be empty")
+        return Verification_Error_AccessKeyEmpty
     }
     if len(r.Key.SecretAccessKey) == 0 {
-        return errors.New("Key.SecretAccessKey cannot be empty")
+        return Verification_Error_SecretAccessKeyEmpty
     }
     return nil
 }
@@ -291,17 +309,15 @@ func (rb RequestBuilder) CreateReaderAwsRequest(r io.ReadCloser) (request AwsReq
 }
 
 func DoRequest(rb RequestBuilderInterface, request AwsRequest) (interface{}, error) {
-    response, responseHeaders, _, err := request.SendRequest()
+    response, responseHeaders, statusCode, err := request.SendRequest()
     if err != nil {
         return nil, err
     }
-    val := rb.DeMarshalGetItemResponse([]byte(response), responseHeaders)
-    switch t := val.(type) {
-    case error:
+    val := rb.DeMarshalResponse([]byte(response), responseHeaders, statusCode)
+    if t, ok := val.(error); ok {
         return nil, t
-    default:
-        return t, nil
     }
+    return val, nil
 }
 
 func BuildRequest(rb RequestBuilderInterface, marsh interface{}) (request AwsRequest, verifyError error) {
@@ -412,6 +428,22 @@ func (req * AwsRequest) SendRequest() (string, map[string]string, int, error) {
         Close: true,
         Header: reqHeaders,
     }
+
+    var rootCA *x509.CertPool
+    // add in any custom certs they want us to use
+    if len(req.Host.CustomCertificates) > 0 {
+        rootCA = x509.NewCertPool()
+        for i := range req.Host.CustomCertificates {
+            rootCA.AddCert(req.Host.CustomCertificates[i])
+        }
+    }
+    tr := &http.Transport{
+        TLSClientConfig: &tls.Config{
+            RootCAs : rootCA,
+        },
+    }
+    httpClient := http.Client{Transport: tr}
+
     if val, ok := req.Headers["Content-Length"]; ok {
         hreq.ContentLength, _ = strconv.ParseInt(val, 10, 64)
     }
@@ -421,7 +453,7 @@ func (req * AwsRequest) SendRequest() (string, map[string]string, int, error) {
     } else if req.PayloadReader != nil {
         hreq.Body = req.PayloadReader
     }
-    resp, err := http.DefaultClient.Do(&hreq)
+    resp, err := httpClient.Do(&hreq)
     if err != nil {
         return "", nil, 0, err
     }

@@ -121,8 +121,8 @@ func (pir PutItemRequest) CoRequest() (*PutItemResponseFuture, error) {
     return future, nil
 }
 
-func (pir PutItemRequest) DeMarshalGetItemResponse(response []byte, headers map[string]string) (interface{}) {
-    if err := CheckForErrorResponse(response); err != nil {
+func (pir PutItemRequest) DeMarshalResponse(response []byte, headers map[string]string, statusCode int) (interface{}) {
+    if err := CheckForErrorResponse(response, statusCode); err != nil {
         return err
     }
     piResponse := new(PutItemResponse)

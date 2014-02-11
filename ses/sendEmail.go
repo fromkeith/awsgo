@@ -134,7 +134,7 @@ func (gir * SendEmailRequest) VerifyInput() (error) {
     return gir.RequestBuilder.VerifyInput()
 }
 
-func (gir SendEmailRequest) DeMarshalGetItemResponse(response []byte, headers map[string]string) (interface{}) {
+func (gir SendEmailRequest) DeMarshalResponse(response []byte, headers map[string]string, statusCode int) (interface{}) {
     giResponse := new(SendEmailResponse)
     //fmt.Println(string(response))
     xml.Unmarshal(response, giResponse)

@@ -92,7 +92,7 @@ func (gir * ChangeMessageVisibilityRequest) VerifyInput() (error) {
     return gir.RequestBuilder.VerifyInput()
 }
 
-func (gir ChangeMessageVisibilityRequest) DeMarshalGetItemResponse(response []byte, headers map[string]string) (interface{}) {
+func (gir ChangeMessageVisibilityRequest) DeMarshalResponse(response []byte, headers map[string]string, statusCode int) (interface{}) {
     if err := awsgo.CheckForErrorXml(response); err != nil {
         return err
     }

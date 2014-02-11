@@ -133,8 +133,8 @@ func NewBatchWriteItemRequest() * BatchWriteItemRequest {
     return req
 }
 
-func (gir BatchWriteItemRequest) DeMarshalGetItemResponse(response []byte, headers map[string]string) (interface{}) {
-    if err := CheckForErrorResponse(response); err != nil {
+func (gir BatchWriteItemRequest) DeMarshalResponse(response []byte, headers map[string]string, statusCode int) (interface{}) {
+    if err := CheckForErrorResponse(response, statusCode); err != nil {
         return err
     }
     giResponse := new(BatchWriteItemResponse)

@@ -181,7 +181,7 @@ func (gir * PutMetricRequest) VerifyInput() (error) {
     return gir.RequestBuilder.VerifyInput()
 }
 
-func (gir PutMetricRequest) DeMarshalGetItemResponse(response []byte, headers map[string]string) (interface{}) {
+func (gir PutMetricRequest) DeMarshalResponse(response []byte, headers map[string]string, statusCode int) (interface{}) {
     giResponse := new(PutMetricResponse)
     //fmt.Println(string(response))
     xml.Unmarshal(response, giResponse)

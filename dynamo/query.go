@@ -107,8 +107,8 @@ func (gir * QueryRequest) VerifyInput() (error) {
     return gir.RequestBuilder.VerifyInput()
 }
 
-func (gir QueryRequest) DeMarshalGetItemResponse(response []byte, headers map[string]string) (interface{}) {
-    if err := CheckForErrorResponse(response); err != nil {
+func (gir QueryRequest) DeMarshalResponse(response []byte, headers map[string]string, statusCode int) (interface{}) {
+    if err := CheckForErrorResponse(response, statusCode); err != nil {
         return err
     }
     giResponse := new(QueryResponse)

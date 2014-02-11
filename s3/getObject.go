@@ -68,7 +68,7 @@ func NewGetObjectRequest() (*GetObjectRequest) {
     return req
 }
 
-func (por GetObjectRequest) DeMarshalGetItemResponse(a []byte, headers map[string]string) (interface{}) {
+func (por GetObjectRequest) DeMarshalResponse(a []byte, headers map[string]string, statusCode int) (interface{}) {
     if headers == nil {
         return nil
     }

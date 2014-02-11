@@ -140,8 +140,8 @@ func (pir UpdateItemRequest) CoRequest() (*UpdateItemResponseFuture, error) {
     return future, nil
 }
 
-func (pir UpdateItemRequest) DeMarshalGetItemResponse(response []byte, headers map[string]string) (interface{}) {
-    if err := CheckForErrorResponse(response); err != nil {
+func (pir UpdateItemRequest) DeMarshalResponse(response []byte, headers map[string]string, statusCode int) (interface{}) {
+    if err := CheckForErrorResponse(response, statusCode); err != nil {
         return err
     }
     piResponse := new(UpdateItemResponse)

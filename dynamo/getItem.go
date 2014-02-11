@@ -35,19 +35,26 @@ import (
     "encoding/json"
 )
 
+var (
+    Verification_Error_TableNameEmpty = errors.New("TableName cannot be empty")
+    Verification_Error_SearchEmpty = errors.New("Search parameters cannot be empty")
+    Verification_Error_RegionEmpty = errors.New("Host.Region cannot be empty")
+    Verification_Error_ServiceEmpty = errors.New("Host.Service cannot be empty")
+)
+
 
 type GetItemRequest struct {
     awsgo.RequestBuilder
 
     AttributesToGet        []string  `json:",omitempty"`
     ConsistentRead         bool     `json:",string"`
-    Search                 map[string]interface{}  `json:"Key"` 
+    Search                 map[string]interface{}  `json:"Key"`
     TableName              string
-    ReturnConsumedCapacity string     
+    ReturnConsumedCapacity string
 }
 
 type GetItemResponse struct {
-    ConsumedCapacity *CapacityResult             `json:",omitempty"`
+    ConsumedCapacity *CapacityResult             `json:"ConsumedCapacity,omitempty"`
     Item             map[string]interface{}      `json:"-"`
     RawItem          map[string]map[string]interface{}  `json:"Item"`
 }
@@ -86,15 +93,17 @@ func NewGetItemRequest() *GetItemRequest {
 }
 
 func (gir * GetItemRequest) VerifyInput() (error) {
-    gir.Host.Service = "dynamodb"
+    if len(gir.Host.Service) == 0 {
+        return Verification_Error_ServiceEmpty
+    }
     if len(gir.TableName) == 0 {
-        return errors.New("TableName cannot be empty")
+        return Verification_Error_TableNameEmpty
     }
     if len(gir.Search) == 0 {
-        return errors.New("Search parameters cannot be empty")
+        return Verification_Error_SearchEmpty
     }
     if len(gir.Host.Region) == 0 {
-        return errors.New("Host.Region cannot be empty")
+        return Verification_Error_RegionEmpty
     }
     // repair any errors, like if you put a string, instead of an awsgo String item
     for k, v := range(gir.Search) {
@@ -115,14 +124,18 @@ func (gir GetItemRequest) CoRequest() (*GetItemResponseFuture, error) {
     return future, nil
 }
 
-func (gir GetItemRequest) DeMarshalGetItemResponse(response []byte, headers map[string]string) (interface{}) {
-    if err := CheckForErrorResponse(response); err != nil {
+func (gir GetItemRequest) DeMarshalResponse(response []byte, headers map[string]string, statusCode int) (interface{}) {
+    if err := CheckForErrorResponse(response, statusCode); err != nil {
         return err
     }
     giResponse := new(GetItemResponse)
-    err := json.Unmarshal([]byte(response), giResponse)
+    err := json.Unmarshal(response, giResponse)
     if err != nil {
-        return err
+        newErr := &awsgo.UnmarhsallingError {
+            ActualContent : string(response),
+            MarshallError : err,
+        }
+        return newErr
     }
     giResponse.Item = make(map[string]interface{})
     awsgo.FromRawMapToEasyTypedMap(giResponse.RawItem, giResponse.Item)

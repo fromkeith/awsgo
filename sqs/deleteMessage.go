@@ -86,7 +86,7 @@ func (gir * DeleteMessageRequest) VerifyInput() (error) {
     return gir.RequestBuilder.VerifyInput()
 }
 
-func (gir DeleteMessageRequest) DeMarshalGetItemResponse(response []byte, headers map[string]string) (interface{}) {
+func (gir DeleteMessageRequest) DeMarshalResponse(response []byte, headers map[string]string, statusCode int) (interface{}) {
     if err := awsgo.CheckForErrorXml(response); err != nil {
         return err
     }

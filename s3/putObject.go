@@ -66,7 +66,7 @@ func NewPutObjectRequest() (*PutObjectRequest) {
     return req
 }
 
-func (por PutObjectRequest) DeMarshalGetItemResponse(a []byte, headers map[string]string) (interface{}) {
+func (por PutObjectRequest) DeMarshalResponse(a []byte, headers map[string]string, statusCode int) (interface{}) {
     if headers == nil {
         return nil
     }

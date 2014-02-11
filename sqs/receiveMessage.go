@@ -135,7 +135,7 @@ func (gir * ReceiveMessageRequest) VerifyInput() (error) {
     return gir.RequestBuilder.VerifyInput()
 }
 
-func (gir ReceiveMessageRequest) DeMarshalGetItemResponse(response []byte, headers map[string]string) (interface{}) {
+func (gir ReceiveMessageRequest) DeMarshalResponse(response []byte, headers map[string]string, statusCode int) (interface{}) {
     if err := awsgo.CheckForErrorXml(response); err != nil {
         return err
     }
