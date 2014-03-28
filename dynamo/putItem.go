@@ -105,7 +105,9 @@ func (pir * PutItemRequest) VerifyInput() (error) {
         pir.Item[k] = awsgo.ConvertToAwsItem(v)
     }
     for k, v := range pir.Expected {
-        pir.Expected[k] = ExpectedItem{v.Exists, awsgo.ConvertToAwsItem(v.Value)}
+        if v.Exists {
+            pir.Expected[k] = ExpectedItem{v.Exists, awsgo.ConvertToAwsItem(v.Value)}
+        }
     }
     return pir.RequestBuilder.VerifyInput()
 }

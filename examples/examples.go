@@ -142,6 +142,7 @@ func TestUpdateItem() {
 func TestPutItem() {
     itemRequest := dynamo.NewPutItemRequest()
     itemRequest.Item[TEST_ITEM_NAME] = "helloThere!"
+    itemRequest.Item["AnotherVal"] = "asdf"
     itemRequest.TableName = TEST_TABLE_NAME
     itemRequest.ReturnValues = dynamo.ReturnValues_ALL_OLD
 
@@ -150,6 +151,24 @@ func TestPutItem() {
     itemRequest.Key, _ = awsgo.GetSecurityKeys()
 
     resp, err := itemRequest.Request()
+    if err != nil {
+        fmt.Println(err)
+        return
+    }
+    fmt.Println(resp)
+}
+
+func TestDeleteItem() {
+    deleteRequest := dynamo.NewDeleteItemRequest()
+    deleteRequest.DeleteKey[TEST_ITEM_NAME] = "helloThere!"
+    deleteRequest.TableName = TEST_TABLE_NAME
+    deleteRequest.ReturnValues = dynamo.ReturnValues_ALL_OLD
+
+    deleteRequest.Host.Region = "us-west-2"
+    deleteRequest.Host.Domain = "amazonaws.com"
+    deleteRequest.Key, _ = awsgo.GetSecurityKeys()
+
+    resp, err := deleteRequest.Request()
     if err != nil {
         fmt.Println(err)
         return
@@ -371,6 +390,7 @@ func main() {
     TestGetItem()
     TestUpdateItem()
     TestPutItem()
+    TestDeleteItem()
     TestBatchGetItem()
     TestBatchWriteItem()
     TestQuery()
