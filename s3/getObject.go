@@ -59,6 +59,7 @@ type GetObjectResponse struct {
     WebsiteRedirectLocation string
     // Actual Data
     Data                []byte
+    StatusCode          int
 }
 
 func NewGetObjectRequest() (*GetObjectRequest) {
@@ -92,6 +93,7 @@ func (por GetObjectRequest) DeMarshalResponse(a []byte, headers map[string]strin
         response.WebsiteRedirectLocation = v
     }
     response.Data = a
+    response.StatusCode = statusCode
     return response
 }
 
