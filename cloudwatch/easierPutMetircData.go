@@ -34,11 +34,13 @@ import (
     "time"
     "errors"
     "fmt"
+    "sync"
 )
 
 
 
 var offThreadSendChannel chan *PutMetricRequest
+var offThreadChannelLock sync.Mutex
 
 
 
@@ -137,7 +139,7 @@ func MultiKeyValueMetrics(name []string, value []float64, unit []string, namespa
         return err
     } else {
         if offThreadSendChannel == nil {
-            return errors.New("No sender has been created! Failing.")
+            createOffThreadSenderIfNotExists()
         }
         offThreadSendChannel <- putMetricRequest
         return nil
@@ -145,14 +147,26 @@ func MultiKeyValueMetrics(name []string, value []float64, unit []string, namespa
 }
 
 
-/** Creates a worker to send metrics.
- * Must be called at least once before trying to set 'sendOnThisThread' false for helper methods.
- */
-func CreateOffThreadSender() {
+func createOffThreadSendChannelIfNotExists() {
+    offThreadChannelLock.Lock()
+    defer offThreadChannelLock.Unlock()
     if offThreadSendChannel == nil {
         // have a bigish buffer so we actaully are not blocking
         offThreadSendChannel = make(chan *PutMetricRequest, 500)
     }
+}
+
+func createOffThreadSenderIfNotExists() {
+    if offThreadSendChannel == nil {
+        CreateOffThreadSender()
+    }
+}
+
+/** Creates a worker to send metrics.
+ * Must be called at least once before trying to set 'sendOnThisThread' false for helper methods.
+ */
+func CreateOffThreadSender() {
+    createOffThreadSendChannelIfNotExists()
     go func () {
         for {
             putMetricRequest := <- offThreadSendChannel

@@ -36,80 +36,82 @@ import (
     "fmt"
 )
 
-type QueryRequest struct {
+
+type ScanRequest struct {
     awsgo.RequestBuilder
 
     AttributesToGet         []string    `json:",omitempty"`
-    ConsistentRead          bool        `json:",string"`
     ExclusiveStartKey       map[string]interface{} `json:",omitempty"`
-    IndexName               string      `json:",omitempty"`
-    KeyConditions           map[string]KeyConditions `json:",omitempty"`
     Limit                   float64     `json:",omitempty"`
     ReturnConsumedCapacity  string      `json:",omitempty"`
-    ScanIndexForward        *bool       `json:",omitempty"`
+    ScanFilter              map[string]KeyConditions `json:",omitempty"`
+    Segment                 float64     `json:",omitempty"`
     Select                  string      `json:",omitempty"`
     TableName               string
+    TotalSegments           float64     `json:",omitempty"`
 }
 
-type QueryResponse struct {
-    ConsumedCapacity *CapacityResult             `json:",omitempty"`
+type ScanResponse struct {
+    ConsumedCapacity        *CapacityResult             `json:",omitempty"`
     Count                   float64
     Items                   []map[string]interface{}    `json:"-"`
     RawItems                []map[string]map[string]interface{} `json:"Items"`
     LastEvaluatedKey        map[string]interface{}      `json:"-"`
     RawLastEvaluatedKey     map[string]map[string]interface{}    `json:"LastEvaluatedKey"`
+    ScannedCount            float64
 }
 
-func (req *QueryRequest) AddKeyCondition(keyName string, values []interface{}, operator string) {
-    if req.KeyConditions == nil {
-        req.KeyConditions = make(map[string]KeyConditions)
+func (req *ScanRequest) SetScanFilter(keyName string, values []interface{}, operator string) {
+    if req.ScanFilter == nil {
+        req.ScanFilter = make(map[string]KeyConditions)
     }
     var condition KeyConditions
     condition.AttributeValueList = values
     condition.ComparisonOperator = operator
-    req.KeyConditions[keyName] = condition
+    req.ScanFilter[keyName] = condition
 }
 
 
-func NewQueryRequest() *QueryRequest {
-    req := new(QueryRequest)
+func NewScanRequest() *ScanRequest {
+    req := new(ScanRequest)
     req.AttributesToGet = nil
-    req.ConsistentRead = false
     req.ExclusiveStartKey = nil
-    req.IndexName = ""
-    req.KeyConditions = nil
+    req.ScanFilter = nil
     req.ReturnConsumedCapacity = ConsumedCapacity_NONE
-    req.ScanIndexForward = nil
     req.Select = ""
     req.TableName = ""
     req.Headers = make(map[string]string)
-    req.Headers["X-Amz-Target"] = QueryTarget
+    req.Headers["X-Amz-Target"] = ScanTarget
     req.RequestMethod = "POST"
     req.CanonicalUri = "/"
+    req.Host.Service = "dynamodb"
     return req
 }
 
-func (gir * QueryRequest) VerifyInput() (error) {
-    gir.Host.Service = "dynamodb"
+func (gir * ScanRequest) VerifyInput() (error) {
     if len(gir.TableName) == 0 {
         return errors.New("TableName cannot be empty")
     }
-    for _, condition := range gir.KeyConditions {
+    for _, condition := range gir.ScanFilter {
         for i := range condition.AttributeValueList {
             condition.AttributeValueList[i] = awsgo.ConvertToAwsItem(condition.AttributeValueList[i])
         }
     }
+    // repair any errors, like if you put a string, instead of an awsgo String item
+    for k, v := range(gir.ExclusiveStartKey) {
+        gir.ExclusiveStartKey[k] = awsgo.ConvertToAwsItem(v)
+    }
     return gir.RequestBuilder.VerifyInput()
 }
 
-func (gir QueryRequest) DeMarshalResponse(response []byte, headers map[string]string, statusCode int) (interface{}) {
+func (gir ScanRequest) DeMarshalResponse(response []byte, headers map[string]string, statusCode int) (interface{}) {
     if err := CheckForErrorResponse(response, statusCode); err != nil {
         return err
     }
-    giResponse := new(QueryResponse)
+    giResponse := new(ScanResponse)
     err := json.Unmarshal([]byte(response), giResponse)
     if err != nil {
-        fmt.Println("Error unmarshalling query response!", string(response))
+        fmt.Println("Error unmarshalling scan response!", string(response))
         return err
     }
 
@@ -123,7 +125,7 @@ func (gir QueryRequest) DeMarshalResponse(response []byte, headers map[string]st
     return giResponse
 }
 
-func (gir QueryRequest) Request() (*QueryResponse, error) {
+func (gir ScanRequest) Request() (*ScanResponse, error) {
     request, err := awsgo.BuildRequest(&gir, gir)
     if err != nil {
         return nil, err
@@ -133,6 +135,6 @@ func (gir QueryRequest) Request() (*QueryResponse, error) {
     if resp == nil {
         return nil, err
     }
-    return resp.(*QueryResponse), err
+    return resp.(*ScanResponse), err
 }
 

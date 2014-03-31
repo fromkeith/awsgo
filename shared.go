@@ -66,7 +66,7 @@ type AwsStringItem struct {
 }
 type AwsNumberItem struct {
     Value float64    `json:"N,string"`
-    Values []float64 `json:"NN,string"`
+    Values []float64 `json:"NN,string,omitempty"`
 }
 
 type ResponseMetaData struct {

@@ -79,6 +79,7 @@ const (
     BatchWriteItemTarget = "DynamoDB_20120810.BatchWriteItem"
     QueryTarget = "DynamoDB_20120810.Query"
     DeleteItemTarget = "DynamoDB_20120810.DeleteItem"
+    ScanTarget = "DynamoDB_20120810.Scan"
 )
 // Known Errors
 const (
@@ -104,6 +105,11 @@ type CapacityResult struct {
 type ExpectedItem struct {
     Exists  bool        `json:",string"`
     Value   interface{} `json:",omitempty"`
+}
+
+type KeyConditions struct {
+    AttributeValueList      []interface{}
+    ComparisonOperator      string
 }
 
 
