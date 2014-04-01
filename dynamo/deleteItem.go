@@ -56,6 +56,7 @@ type DeleteItemResponse struct {
     ConsumedCapacity *CapacityResult             `json:"ConsumedCapacity,omitempty"`
     Attributes             map[string]interface{}      `json:"-"`
     RawAttributes          map[string]map[string]interface{}  `json:"Attributes"`
+    ItemCollectionMetrics    *ItemCollectionMetricsStruct   `json:",omitempty"`
 }
 
 func NewDeleteItemRequest() *DeleteItemRequest {
@@ -95,7 +96,9 @@ func (gir * DeleteItemRequest) VerifyInput() (error) {
         gir.DeleteKey[k] = awsgo.ConvertToAwsItem(v)
     }
     for k, v := range gir.Expected {
-        gir.Expected[k] = ExpectedItem{v.Exists, awsgo.ConvertToAwsItem(v.Value)}
+        if v.Exists {
+            gir.Expected[k] = ExpectedItem{v.Exists, awsgo.ConvertToAwsItem(v.Value)}
+        }
     }
     return nil
 }
@@ -116,6 +119,10 @@ func (gir DeleteItemRequest) DeMarshalResponse(response []byte, headers map[stri
     }
     giResponse.Attributes = make(map[string]interface{})
     awsgo.FromRawMapToEasyTypedMap(giResponse.RawAttributes, giResponse.Attributes)
+    if giResponse.ItemCollectionMetrics != nil {
+        giResponse.ItemCollectionMetrics.ItemCollectionKey = make(map[string]interface{})
+        awsgo.FromRawMapToEasyTypedMap(giResponse.ItemCollectionMetrics.RawItemCollectionKey, giResponse.ItemCollectionMetrics.ItemCollectionKey)
+    }
     return giResponse
 }
 
