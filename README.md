@@ -1,7 +1,7 @@
 awsgo
 =====
 
-An _incomplete_ go library to talk to AWS services. 
+An _incomplete_ go library to talk to AWS services. http://godoc.org/github.com/fromkeith/awsgo
 
 This is by no means a fully, complete, or well tested library. It will evolve as needed. Pull requests are more then welcome. As well as any go related tips or feedback.
 
@@ -16,13 +16,16 @@ Supported operations for each service:
 ### DynamoDB
 > Caveat: Binary values are not yet supported.
 
+Godoc: http://godoc.org/github.com/fromkeith/awsgo/dynamo
+
 * Batch Get Item
 * Get Item
 * Put Item
 * Update Item
 * Batch Write Item
 * Query
-    * Only partially tested
+* Scan
+* Delete Item
 
 ### S3
 * Put Item
