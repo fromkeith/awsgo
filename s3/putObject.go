@@ -106,25 +106,25 @@ func (por * PutObjectRequest) VerifyInput() (error) {
     por.Headers["Content-Length"] = fmt.Sprintf("%d", por.Length)
     por.Headers["Expect"] = "100-continue"
     por.CanonicalUri = fmt.Sprintf("/%s", por.Path)
-    return por.RequestBuilder.VerifyInput()
+    return nil
 }
 
 
 func (por PutObjectRequest) CoRequest() (*PutObjectResponseFuture, error) {
-    request, err := awsgo.BuildRequest(&por, por.Source)
+    request, err := awsgo.NewAwsRequest(&por, por.Source)
     if err != nil {
         return nil, err
     }
     future := new(PutObjectResponseFuture)
     future.errResponse = make(chan error)
     future.response = make(chan * PutObjectResponse)
-    go por.CoDoRequest(request, future)
+    go por.CoDoAndDemarshall(request, future)
     return future, nil
 }
 
-func (por PutObjectRequest) CoDoRequest(request awsgo.AwsRequest, future * PutObjectResponseFuture) {
+func (por PutObjectRequest) CoDoAndDemarshall(request awsgo.AwsRequest, future * PutObjectResponseFuture) {
     request.RequestSigningType = awsgo.RequestSigningType_REST
-    resp, err := awsgo.DoRequest(&por, request)
+    resp, err := request.DoAndDemarshall(&por)
     if err != nil {
         future.errResponse <- err
     } else {
@@ -135,12 +135,12 @@ func (por PutObjectRequest) CoDoRequest(request awsgo.AwsRequest, future * PutOb
 }
 
 func (por PutObjectRequest) Request() (*PutObjectResponse, error) {
-    request, err := awsgo.BuildRequest(&por, por.Source)
+    request, err := awsgo.NewAwsRequest(&por, por.Source)
     if err != nil {
         return nil, err
     }
     request.RequestSigningType = awsgo.RequestSigningType_REST
-    resp, err := awsgo.DoRequest(&por, request)
+    resp, err := request.DoAndDemarshall(&por)
     if resp == nil {
         return nil, err
     }

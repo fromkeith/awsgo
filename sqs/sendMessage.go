@@ -86,7 +86,7 @@ func (gir * SendMessageRequest) VerifyInput() (error) {
         url.QueryEscape("2012-11-05"),
         url.QueryEscape(gir.MessageBody),
         )
-    return gir.RequestBuilder.VerifyInput()
+    return nil
 }
 
 func (gir SendMessageRequest) DeMarshalResponse(response []byte, headers map[string]string, statusCode int) (interface{}) {
@@ -102,13 +102,13 @@ func (gir SendMessageRequest) DeMarshalResponse(response []byte, headers map[str
     return giResponse
 }
 
-func (gir SendMessageRequest) Request() (*SendMessageResponse, error) {    
+func (gir SendMessageRequest) Request() (*SendMessageResponse, error) {
     request, err := awsgo.BuildEmptyContentRequest(&gir)
     if err != nil {
         return nil, err
     }
     request.RequestSigningType = awsgo.RequestSigningType_AWS4
-    resp, err := awsgo.DoRequest(&gir, request)
+    resp, err := request.DoAndDemarshall(&gir)
     if resp == nil {
         return nil, err
     }

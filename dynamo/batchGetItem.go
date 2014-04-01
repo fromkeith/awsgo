@@ -103,18 +103,18 @@ func (gir * BatchGetItemRequest) VerifyInput() (error) {
             }
         }
     }
-    return gir.RequestBuilder.VerifyInput()
+    return nil
 }
 /*
 func (gir BatchGetItemRequest) CoRequest() (*GetItemResponseFuture, error) {
-    request, err := awsgo.BuildRequest(&gir, GetItemTarget, gir)
+    request, err := awsgo.NewAwsRequest(&gir, GetItemTarget, gir)
     if err != nil {
         return nil, err
     }
     future := new(GetItemResponseFuture)
     future.errResponse = make(chan error)
     future.response = make(chan * GetItemResponse)
-    go gir.CoDoRequest(request, future)
+    go gir.CoDoAndDemarshall(request, future)
     return future, nil
 }*/
 
@@ -152,8 +152,8 @@ func (gir BatchGetItemRequest) DeMarshalResponse(response []byte, headers map[st
     return giResponse
 }
 /*
-func (gir BatchGetItemRequest) CoDoRequest(request awsgo.AwsRequest, future * GetItemResponseFuture) {
-    resp, err := awsgo.DoRequest(&gir, request)
+func (gir BatchGetItemRequest) CoDoAndDemarshall(request awsgo.AwsRequest, future * GetItemResponseFuture) {
+    resp, err := awsgo.DoAndDemarshall(&gir, request)
     if err != nil {
         future.errResponse <- err
     } else {
@@ -163,13 +163,13 @@ func (gir BatchGetItemRequest) CoDoRequest(request awsgo.AwsRequest, future * Ge
     close(future.response)
 }*/
 
-func (gir BatchGetItemRequest) Request() (*BatchGetItemResponse, error) {    
-    request, err := awsgo.BuildRequest(&gir, gir)
+func (gir BatchGetItemRequest) Request() (*BatchGetItemResponse, error) {
+    request, err := awsgo.NewAwsRequest(&gir, gir)
     if err != nil {
         return nil, err
     }
     request.RequestSigningType = awsgo.RequestSigningType_AWS4
-    resp, err := awsgo.DoRequest(&gir, request)
+    resp, err := request.DoAndDemarshall(&gir)
     if resp == nil {
         return nil, err
     }

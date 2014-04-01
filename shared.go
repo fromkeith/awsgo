@@ -60,93 +60,48 @@ const (
     RequestSigningType_REST = 2
 )
 
-
+// Meta data in a lot of aws requests
 type ResponseMetaData struct {
     RequestId string
 }
 
+// The host of the service we are hitting.
+// Urls are formed by taking Service.Region.Domain
 type AwsHost struct {
+    // Eg. dynamo
     Service string
+    // Eg us-west-2
     Region string
+    // Eg. amazonaws.com
     Domain string
+    // If you want to hit your own custom test service.
+    // Generally leave nil to use go's default cert chain.
     CustomCertificates []*x509.Certificate
 }
 
+// Base of a request. Used across all requests.
 type RequestBuilder struct {
-    Host AwsHost                `json:"-"`
-    Key  Credentials             `json:"-"`
-    Headers map[string]string `json:"-"`
-    RequestMethod string               `json:"-"`
-    CanonicalUri string         `json:"-"`
+    // The Host we are hitting
+    Host AwsHost                    `json:"-"`
+    // The Credentials to use
+    Key  Credentials                `json:"-"`
+    // Any custom headers
+    Headers map[string]string       `json:"-"`
+    // The method we are using GET, PUT, POST, ...
+    RequestMethod string            `json:"-"`
+    // The uri we are hitting.
+    CanonicalUri string             `json:"-"`
 }
 
+// Implemented by each AWS request
+// Provides some standard steps to doing a request, and handling its response.
 type RequestBuilderInterface interface {
+    // verify the request before we send it
     VerifyInput() error
+    // Get the underlying RequestBuilder in the struct
     GetRequestBuilder() RequestBuilder
+    // Unmarshal the response
     DeMarshalResponse(response []byte, headers map[string]string, statusCode int) (interface{})
-}
-
-func (r RequestBuilder) GetRequestBuilder() RequestBuilder {
-    return r
-}
-
-func (r * RequestBuilder) VerifyInput() (error) {
-    if len(r.Host.Domain) == 0 {
-        return Verification_Error_DomainEmpty
-    }
-    if len(r.Key.AccessKeyId) == 0 {
-        return Verification_Error_AccessKeyEmpty
-    }
-    if len(r.Key.SecretAccessKey) == 0 {
-        return Verification_Error_SecretAccessKeyEmpty
-    }
-    return nil
-}
-
-func createJsonAwsRequest(rb RequestBuilder, marsh interface{}) (request AwsRequest) {
-    request.Host = rb.Host
-    request.Key = rb.Key
-    request.Headers = rb.Headers
-    request.RequestMethod = rb.RequestMethod
-    request.CanonicalUri = rb.CanonicalUri
-    request.Date = time.Now()
-    if r, ok := marsh.(io.ReadCloser); ok {
-        request.PayloadReader = r
-    } else {
-        pay, _ := json.Marshal(marsh)
-        request.Payload = string(pay)
-        if request.Headers == nil {
-            request.Headers = make(map[string]string)
-        }
-        request.Headers["Content-Type"] = "application/x-amz-json-1.0"
-        request.Headers["Content-Length"] = fmt.Sprintf("%d", len(request.Payload))
-    }
-    return
-}
-
-func DoRequest(rb RequestBuilderInterface, request AwsRequest) (interface{}, error) {
-    response, responseHeaders, statusCode, err := request.SendRequest()
-    if err != nil {
-        return nil, err
-    }
-    val := rb.DeMarshalResponse([]byte(response), responseHeaders, statusCode)
-    if t, ok := val.(error); ok {
-        return nil, t
-    }
-    return val, nil
-}
-
-func BuildRequest(rb RequestBuilderInterface, marsh interface{}) (request AwsRequest, verifyError error) {
-    verifyError = rb.VerifyInput()
-    if verifyError != nil {
-        return request, verifyError
-    }
-    request = createJsonAwsRequest(rb.GetRequestBuilder(), marsh)
-    return request, nil
-}
-
-func BuildEmptyContentRequest(rb RequestBuilderInterface) (request AwsRequest, verifyError error) {
-    return BuildRequest(rb, ioutil.NopCloser(bytes.NewBuffer([]byte(""))))
 }
 
 type AwsRequest struct {
@@ -165,6 +120,64 @@ type AwsRequest struct {
     payloadHash []byte
 }
 
+func (r RequestBuilder) GetRequestBuilder() RequestBuilder {
+    return r
+}
+
+// verify the RequestBuilder base has what is required.
+func verifyInput(r RequestBuilder) (error) {
+    if len(r.Host.Domain) == 0 {
+        return Verification_Error_DomainEmpty
+    }
+    if len(r.Key.AccessKeyId) == 0 {
+        return Verification_Error_AccessKeyEmpty
+    }
+    if len(r.Key.SecretAccessKey) == 0 {
+        return Verification_Error_SecretAccessKeyEmpty
+    }
+    return nil
+}
+
+// Start creating the request.
+// Take the base information, and the data we are going to transport.
+func createAwsRequest(rb RequestBuilder, marsh interface{}) (request AwsRequest) {
+    request.Host = rb.Host
+    request.Key = rb.Key
+    request.Headers = rb.Headers
+    request.RequestMethod = rb.RequestMethod
+    request.CanonicalUri = rb.CanonicalUri
+    request.Date = time.Now()
+    if r, ok := marsh.(io.ReadCloser); ok {
+        request.PayloadReader = r
+    } else if marsh != nil {
+        pay, _ := json.Marshal(marsh)
+        request.Payload = string(pay)
+        if request.Headers == nil {
+            request.Headers = make(map[string]string)
+        }
+        request.Headers["Content-Type"] = "application/x-amz-json-1.0"
+        request.Headers["Content-Length"] = fmt.Sprintf("%d", len(request.Payload))
+    }
+    return
+}
+
+// Given the RequestBuilderInterface this will verify the underlying request
+// and then create a new AwsRequest instance.
+// returned Request is only valid if error is not nill
+func NewAwsRequest(rb RequestBuilderInterface, marsh interface{}) (request AwsRequest, verifyError error) {
+    verifyError = verifyInput(rb.GetRequestBuilder())
+    if verifyError != nil {
+        return
+    }
+    verifyError = rb.VerifyInput()
+    if verifyError != nil {
+        return request, verifyError
+    }
+    request = createAwsRequest(rb.GetRequestBuilder(), marsh)
+    return request, nil
+}
+
+// concat the parts together into a hostname.
 func (h AwsHost) ToString() string {
     if h.Region == "" {
         return fmt.Sprintf("%s.%s",
@@ -174,26 +187,38 @@ func (h AwsHost) ToString() string {
         h.Service, h.Region, h.Domain)
 }
 
-// 20110909
-func SimpleDate(d time.Time) string {
-    d = d.UTC()
-    return fmt.Sprintf("%d%0.2d%0.2d",
-        d.Year(), d.Month(), d.Day())
-}
-// 20130315T092054Z ISO 8601 basic format
-func IsoDate(t time.Time) string {
-  t = t.UTC()
-  return fmt.Sprintf("%04d%02d%02dT%02d%02d%02dZ", t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second());
+// Perform the actual request, calling the demarshall on the RequestBuilderInterface
+// returns the result of the Demarshall, or other errors.
+func (request AwsRequest) DoAndDemarshall(rb RequestBuilderInterface) (interface{}, error) {
+    responseIo, responseHeaders, statusCode, err := request.Do()
+    if err != nil {
+        return nil, err
+    }
+    defer responseIo.Close()
+
+    var responseContent []byte
+    buf := bytes.Buffer{}
+    if _, err = io.Copy(&buf, responseIo); err != nil {
+        return nil, err
+    }
+    responseContent = []byte(buf.String())
+
+    val := rb.DeMarshalResponse(responseContent, responseHeaders, statusCode)
+    if t, ok := val.(error); ok {
+        return nil, t
+    }
+    return val, nil
 }
 
-func CreateHMacHasher256() hash.Hash {
-    return sha256.New()
-}
-func CreateHMacHasher1() hash.Hash {
-    return sha1.New()
-}
+// Performs the actual request
+// Returns:
+//      io.ReaderCloser - the unclosed response of the request
+//      map[string]string - the headers in the response
+//      int - that status code the response
+//      error - any errors that occured
+func (req AwsRequest) Do() (io.ReadCloser, map[string]string, int, error) {
 
-func (req * AwsRequest) SendRequest() (string, map[string]string, int, error) {
+    // add the required headers
     req.Headers["Host"] = strings.ToLower(req.Host.ToString())
     req.Headers["user-agent"] = "go-aws-client-0.1"
     req.Headers["x-amz-date"] = IsoDate(req.Date)
@@ -201,55 +226,34 @@ func (req * AwsRequest) SendRequest() (string, map[string]string, int, error) {
         req.Headers["x-amz-security-token"] = req.Key.Token
     }
 
-    if req.RequestSigningType == RequestSigningType_AWS4 {
-        req.CreateSignature(true)
-    } else if req.RequestSigningType == RequestSigningType_REST {
-        req.CreateRestSignature()
-    } else {
-        return "", nil, 0, errors.New("Invalid request signing type")
+    if err := signRequest(req); err != nil {
+        return nil, nil, 0, err
     }
-    
+
     req.Headers["Connection"] = "Keep-Alive"
 
+    // create headers for the actual request
     reqHeaders := http.Header{}
     for k, v := range req.Headers {
         reqHeaders.Add(k, v)
     }
-    urlStr := ""
-    if req.Host.Region == "" {
-        urlStr = fmt.Sprintf("https://%s.%s%s", req.Host.Service, req.Host.Domain, req.CanonicalUri)
-    } else {
-        urlStr = fmt.Sprintf("https://%s.%s.%s%s", req.Host.Service, req.Host.Region, req.Host.Domain, req.CanonicalUri)
-    }
-    //fmt.Println(urlStr)
 
-    url, err := url.Parse(urlStr)
+    url_, err := getUrl(req)
     if err != nil {
-        return "", nil, 0, err
+        return nil, nil, 0, err
     }
+
+    // the base request
     hreq := http.Request {
-        URL: url,
+        URL: url_,
         Method: req.RequestMethod,
         ProtoMajor: 1,
         ProtoMinor: 1,
-        Close: true,
+        Close: true, // test what we want this. I seem to remember needing close...
         Header: reqHeaders,
     }
 
-    var rootCA *x509.CertPool
-    // add in any custom certs they want us to use
-    if len(req.Host.CustomCertificates) > 0 {
-        rootCA = x509.NewCertPool()
-        for i := range req.Host.CustomCertificates {
-            rootCA.AddCert(req.Host.CustomCertificates[i])
-        }
-    }
-    tr := &http.Transport{
-        TLSClientConfig: &tls.Config{
-            RootCAs : rootCA,
-        },
-    }
-    httpClient := http.Client{Transport: tr}
+    httpClient := addCustomCertsAndCreateClient(req)
 
     if val, ok := req.Headers["Content-Length"]; ok {
         hreq.ContentLength, _ = strconv.ParseInt(val, 10, 64)
@@ -262,28 +266,57 @@ func (req * AwsRequest) SendRequest() (string, map[string]string, int, error) {
     }
     resp, err := httpClient.Do(&hreq)
     if err != nil {
-        return "", nil, 0, err
+        return nil, nil, 0, err
     }
-    defer resp.Body.Close()
-
-    var responseContent []byte
-
-    buf := bytes.NewBuffer(make([]byte, 0))
-    if _, err = io.Copy(buf, resp.Body); err != nil {
-        fmt.Println("Failed to copy part of response", err);
-    }
-    responseContent = []byte(buf.String())
 
     responseHeaders := make(map[string]string)
     for k, v := range resp.Header {
         responseHeaders[strings.ToLower(k)] = strings.Join(v, ";")
     }
-    //fmt.Println("Response", string(responseContent))
-    return string(responseContent), responseHeaders, resp.StatusCode, nil
+    return resp.Body, responseHeaders, resp.StatusCode, nil
+}
+
+func addCustomCertsAndCreateClient(req AwsRequest) (http.Client) {
+    // add in any custom certs they want us to use
+    var rootCA *x509.CertPool
+    if len(req.Host.CustomCertificates) > 0 {
+        rootCA = x509.NewCertPool()
+        for i := range req.Host.CustomCertificates {
+            rootCA.AddCert(req.Host.CustomCertificates[i])
+        }
+    }
+    tr := &http.Transport{
+        TLSClientConfig: &tls.Config{
+            RootCAs : rootCA,
+        },
+    }
+    return http.Client{Transport: tr}
+}
+
+func getUrl(req AwsRequest) (*url.URL, error) {
+    // create the url string. Not all aws request have regions.
+    var urlStr string
+    if req.Host.Region == "" {
+        urlStr = fmt.Sprintf("https://%s.%s%s", req.Host.Service, req.Host.Domain, req.CanonicalUri)
+    } else {
+        urlStr = fmt.Sprintf("https://%s.%s.%s%s", req.Host.Service, req.Host.Region, req.Host.Domain, req.CanonicalUri)
+    }
+    return url.Parse(urlStr)
+}
+
+func signRequest(req AwsRequest) error {
+    if req.RequestSigningType == RequestSigningType_AWS4 {
+        req.createSignature()
+    } else if req.RequestSigningType == RequestSigningType_REST {
+        req.createRestSignature()
+    } else {
+        return errors.New("Invalid request signing type")
+    }
+    return nil
 }
 
 // http://docs.aws.amazon.com/AmazonS3/latest/dev/RESTAuthentication.html
-func (req * AwsRequest) CreateRestSignature() {
+func (req * AwsRequest) createRestSignature() {
     payloadHash := ""
     md5Hasher := md5.New()
     if req.Payload != "" {
@@ -297,7 +330,7 @@ func (req * AwsRequest) CreateRestSignature() {
         req.RequestMethod, payloadHash, req.Headers["Content-Type"], "" /*old school date*/,
         canonicalHeaders, canonicalResource)
 
-    hmacHasher := hmac.New(CreateHMacHasher1, []byte(req.Key.SecretAccessKey))
+    hmacHasher := hmac.New(createHMacHasher1, []byte(req.Key.SecretAccessKey))
     hmacHasher.Write([]byte(stringToSign))
 
     signature := base64.StdEncoding.EncodeToString(hmacHasher.Sum(nil))
@@ -334,12 +367,10 @@ func (req * AwsRequest) createCanonicalHeaders(prefixReq string) (canonicalHeade
 
 
 // http://docs.aws.amazon.com/general/latest/gr/sigv4-create-canonical-request.html
-func (req * AwsRequest) CreateSignature(calcEmptyHash bool) {
+func (req * AwsRequest) createSignature() {
     hasher := sha256.New()
-    if req.Payload != "" || calcEmptyHash {
-        hasher.Write([]byte(req.Payload)) // TODO: check return code?
-        req.payloadHash = hasher.Sum(nil)
-    }
+    hasher.Write([]byte(req.Payload)) // TODO: check return code?
+    req.payloadHash = hasher.Sum(nil)
 
     // Stupid Amazon. Why have the service name and the url not match???
     fixedService := req.Host.Service
@@ -347,7 +378,7 @@ func (req * AwsRequest) CreateSignature(calcEmptyHash bool) {
         fixedService = "ses"
     }
 
-    req.scope = fmt.Sprintf("%s/%s/%s/aws4_request", SimpleDate(req.Date), req.Host.Region, fixedService)
+    req.scope = fmt.Sprintf("%s/%s/%s/aws4_request", simpleDate(req.Date), req.Host.Region, fixedService)
 
     canonicalQueryString := ""
     fixedUrl := req.CanonicalUri
@@ -365,9 +396,9 @@ func (req * AwsRequest) CreateSignature(calcEmptyHash bool) {
             }
         }
     }
-    if req.Payload != "" || calcEmptyHash {
-        req.Headers["x-amz-content-sha256"] = fmt.Sprintf("%x", req.payloadHash)
-    }
+
+    req.Headers["x-amz-content-sha256"] = fmt.Sprintf("%x", req.payloadHash)
+
     canonicalHeaders, signedHeaders := req.createCanonicalHeaders("")
 
     canonicalReq := fmt.Sprintf("%s\n%s\n%s\n%s\n%s\n%x",
@@ -384,29 +415,29 @@ func (req * AwsRequest) CreateSignature(calcEmptyHash bool) {
     //fmt.Println("String To Sign:", stringToSign)
 
     hasher.Reset()
-    hmacHasher := hmac.New(CreateHMacHasher256, []byte(fmt.Sprintf("AWS4%s", req.Key.SecretAccessKey)))
-    hmacHasher.Write([]byte(SimpleDate(req.Date)))
+    hmacHasher := hmac.New(createHMacHasher256, []byte(fmt.Sprintf("AWS4%s", req.Key.SecretAccessKey)))
+    hmacHasher.Write([]byte(simpleDate(req.Date)))
     hmacDate := hmacHasher.Sum(nil)
 
-    hmacHasher = hmac.New(CreateHMacHasher256, hmacDate)
+    hmacHasher = hmac.New(createHMacHasher256, hmacDate)
     hmacHasher.Write([]byte(req.Host.Region))
     hmacRegion := hmacHasher.Sum(nil)
 
-    hmacHasher = hmac.New(CreateHMacHasher256, hmacRegion)
+    hmacHasher = hmac.New(createHMacHasher256, hmacRegion)
     hmacHasher.Write([]byte(fixedService))
     hmacService := hmacHasher.Sum(nil)
 
-    hmacHasher = hmac.New(CreateHMacHasher256, hmacService)
+    hmacHasher = hmac.New(createHMacHasher256, hmacService)
     hmacHasher.Write([]byte("aws4_request"))
     signingKey := hmacHasher.Sum(nil)
 
-    hmacHasher = hmac.New(CreateHMacHasher256, signingKey)
+    hmacHasher = hmac.New(createHMacHasher256, signingKey)
     hmacHasher.Write([]byte(stringToSign))
     req.signature = fmt.Sprintf("%x", hmacHasher.Sum(nil))
 
     req.Headers["Authorization"] =
         fmt.Sprintf("AWS4-HMAC-SHA256 Credential=%s/%s/%s/%s/aws4_request, SignedHeaders=%s, Signature=%s",
-            req.Key.AccessKeyId, SimpleDate(req.Date), req.Host.Region, fixedService, signedHeaders, req.signature)
+            req.Key.AccessKeyId, simpleDate(req.Date), req.Host.Region, fixedService, signedHeaders, req.signature)
 }
 
 
@@ -539,3 +570,27 @@ func GetSecurityKeys() (finalCred Credentials, err error)  {
     return 
 }
 
+
+
+// 20110909
+func simpleDate(d time.Time) string {
+    d = d.UTC()
+    return fmt.Sprintf("%d%0.2d%0.2d",
+        d.Year(), d.Month(), d.Day())
+}
+// 20130315T092054Z ISO 8601 basic format
+func IsoDate(t time.Time) string {
+  t = t.UTC()
+  return fmt.Sprintf("%04d%02d%02dT%02d%02d%02dZ", t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second());
+}
+
+func createHMacHasher256() hash.Hash {
+    return sha256.New()
+}
+func createHMacHasher1() hash.Hash {
+    return sha1.New()
+}
+
+func BuildEmptyContentRequest(rb RequestBuilderInterface) (request AwsRequest, verifyError error) {
+    return NewAwsRequest(rb, ioutil.NopCloser(bytes.NewBuffer([]byte(""))))
+}

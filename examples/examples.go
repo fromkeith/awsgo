@@ -113,8 +113,8 @@ func TestUpdateItem() {
     itemRequest.UpdateKey[TEST_ITEM_NAME] = "e5dd6f4d-5c80-4069-817e-646372bf5f74"
     rand.Seed(time.Now().Unix())
     newName := fmt.Sprintf("%d", rand.Int())
-    itemRequest.Update["GameName"] = dynamo.AttributeUpdates{"PUT", awsgo.NewStringItem(newName)}
-    itemRequest.Expected["Holinn"] = dynamo.ExpectedItem{true, awsgo.NewNumberItem(1)}
+    itemRequest.Update["GameName"] = dynamo.AttributeUpdates{"PUT", newName}
+    itemRequest.Expected["Holinn"] = dynamo.ExpectedItem{true, 1}
     itemRequest.TableName = TEST_TABLE_NAME
     itemRequest.ReturnValues = dynamo.ReturnValues_UPDATED_NEW
 

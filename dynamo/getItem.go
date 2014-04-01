@@ -110,18 +110,18 @@ func (gir * GetItemRequest) VerifyInput() (error) {
     for k, v := range(gir.Search) {
         gir.Search[k] = awsgo.ConvertToAwsItem(v)
     }
-    return gir.RequestBuilder.VerifyInput()
+    return nil
 }
 
 func (gir GetItemRequest) CoRequest() (*GetItemResponseFuture, error) {
-    request, err := awsgo.BuildRequest(&gir, gir)
+    request, err := awsgo.NewAwsRequest(&gir, gir)
     if err != nil {
         return nil, err
     }
     future := new(GetItemResponseFuture)
     future.errResponse = make(chan error)
     future.response = make(chan * GetItemResponse)
-    go gir.CoDoRequest(request, future)
+    go gir.CoDoAndDemarshall(request, future)
     return future, nil
 }
 
@@ -143,9 +143,9 @@ func (gir GetItemRequest) DeMarshalResponse(response []byte, headers map[string]
     return giResponse
 }
 
-func (gir GetItemRequest) CoDoRequest(request awsgo.AwsRequest, future * GetItemResponseFuture) {
+func (gir GetItemRequest) CoDoAndDemarshall(request awsgo.AwsRequest, future * GetItemResponseFuture) {
     request.RequestSigningType = awsgo.RequestSigningType_AWS4
-    resp, err := awsgo.DoRequest(&gir, request)
+    resp, err := request.DoAndDemarshall(&gir)
     if err != nil {
         future.errResponse <- err
     } else {
@@ -155,13 +155,13 @@ func (gir GetItemRequest) CoDoRequest(request awsgo.AwsRequest, future * GetItem
     close(future.response)
 }
 
-func (gir GetItemRequest) Request() (*GetItemResponse, error) {    
-    request, err := awsgo.BuildRequest(&gir, gir)
+func (gir GetItemRequest) Request() (*GetItemResponse, error) {
+    request, err := awsgo.NewAwsRequest(&gir, gir)
     if err != nil {
         return nil, err
     }
     request.RequestSigningType = awsgo.RequestSigningType_AWS4
-    resp, err := awsgo.DoRequest(&gir, request)
+    resp, err := request.DoAndDemarshall(&gir)
     if resp == nil {
         return nil, err
     }

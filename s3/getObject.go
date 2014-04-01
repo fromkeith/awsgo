@@ -118,18 +118,18 @@ func (gi * GetObjectRequest) VerifyInput() (error) {
     }
     
     gi.CanonicalUri = fmt.Sprintf("/%s", gi.Path)
-    return gi.RequestBuilder.VerifyInput()
+    return nil
 }
 
 
 
 func (gor GetObjectRequest) Request() (*GetObjectResponse, error) {
-    request, err := awsgo.BuildRequest(&gor, nil)
+    request, err := awsgo.NewAwsRequest(&gor, nil)
     if err != nil {
         return nil, err
     }
     request.RequestSigningType = awsgo.RequestSigningType_REST
-    resp, err := awsgo.DoRequest(&gor, request)
+    resp, err := request.DoAndDemarshall(&gor)
     if resp == nil {
         return nil, err
     }

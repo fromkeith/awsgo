@@ -132,7 +132,7 @@ func (gir * SendEmailRequest) VerifyInput() (error) {
     gir.CanonicalUri = addStringList(gir.CanonicalUri, gir.Destination.BccAddresses, "Destination.BccAddresses")
     gir.CanonicalUri = addStringList(gir.CanonicalUri, gir.Destination.CcAddresses, "Destination.CcAddresses")
 
-    return gir.RequestBuilder.VerifyInput()
+    return nil
 }
 
 func (gir SendEmailRequest) DeMarshalResponse(response []byte, headers map[string]string, statusCode int) (interface{}) {
@@ -149,7 +149,7 @@ func (gir SendEmailRequest) Request() (*SendEmailResponse, error) {
         return nil, err
     }
     request.RequestSigningType = awsgo.RequestSigningType_AWS4
-    resp, err := awsgo.DoRequest(&gir, request)
+    resp, err := request.DoAndDemarshall(&gir)
     if resp == nil {
         return nil, err
     }

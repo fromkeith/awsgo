@@ -133,7 +133,7 @@ func (gir * ReceiveMessageRequest) VerifyInput() (error) {
             gir.WaitTimeSeconds,
         )
     }
-    return gir.RequestBuilder.VerifyInput()
+    return nil
 }
 
 func (gir ReceiveMessageRequest) DeMarshalResponse(response []byte, headers map[string]string, statusCode int) (interface{}) {
@@ -153,13 +153,13 @@ func (gir ReceiveMessageRequest) DeMarshalResponse(response []byte, headers map[
     return giResponse
 }
 
-func (gir ReceiveMessageRequest) Request() (*ReceiveMessageResponse, error) {    
+func (gir ReceiveMessageRequest) Request() (*ReceiveMessageResponse, error) {
     request, err := awsgo.BuildEmptyContentRequest(&gir)
     if err != nil {
         return nil, err
     }
     request.RequestSigningType = awsgo.RequestSigningType_AWS4
-    resp, err := awsgo.DoRequest(&gir, request)
+    resp, err := request.DoAndDemarshall(&gir)
     if resp == nil {
         return nil, err
     }

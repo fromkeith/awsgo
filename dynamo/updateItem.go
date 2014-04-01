@@ -127,17 +127,17 @@ func (pir * UpdateItemRequest) VerifyInput() (error) {
     for k, v := range pir.Expected {
         pir.Expected[k] = ExpectedItem{v.Exists, awsgo.ConvertToAwsItem(v.Value)}
     }
-    return pir.RequestBuilder.VerifyInput()
+    return nil
 }
 func (pir UpdateItemRequest) CoRequest() (*UpdateItemResponseFuture, error) {
-    request, err := awsgo.BuildRequest(&pir, pir)
+    request, err := awsgo.NewAwsRequest(&pir, pir)
     if err != nil {
         return nil, err
     }
     future := new(UpdateItemResponseFuture)
     future.errResponse = make(chan error)
     future.response = make(chan * UpdateItemResponse)
-    go pir.CoDoRequest(request, future)
+    go pir.CoDoAndDemarshall(request, future)
     return future, nil
 }
 
@@ -158,9 +158,9 @@ func (pir UpdateItemRequest) DeMarshalResponse(response []byte, headers map[stri
 }
 
 
-func (pir UpdateItemRequest) CoDoRequest(request awsgo.AwsRequest, future * UpdateItemResponseFuture) {
+func (pir UpdateItemRequest) CoDoAndDemarshall(request awsgo.AwsRequest, future * UpdateItemResponseFuture) {
     request.RequestSigningType = awsgo.RequestSigningType_AWS4
-    resp, err := awsgo.DoRequest(&pir, request)
+    resp, err := request.DoAndDemarshall(&pir)
     if err != nil {
         future.errResponse <- err
     } else {
@@ -170,13 +170,13 @@ func (pir UpdateItemRequest) CoDoRequest(request awsgo.AwsRequest, future * Upda
     close(future.response)
 }
 
-func (pir UpdateItemRequest) Request() (*UpdateItemResponse, error) {   
-    request, err := awsgo.BuildRequest(&pir, pir)
+func (pir UpdateItemRequest) Request() (*UpdateItemResponse, error) {
+    request, err := awsgo.NewAwsRequest(&pir, pir)
     if err != nil {
         return nil, err
     }
     request.RequestSigningType = awsgo.RequestSigningType_AWS4
-    resp, err := awsgo.DoRequest(&pir, request)
+    resp, err := request.DoAndDemarshall(&pir)
     if resp == nil {
         return nil, err
     }

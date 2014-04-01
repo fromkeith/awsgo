@@ -188,16 +188,16 @@ func (gir * BatchWriteItemRequest) VerifyInput() (error) {
             }
         }
     }
-    return gir.RequestBuilder.VerifyInput()
+    return nil
 }
 
 func (gir BatchWriteItemRequest) Request() (*BatchWriteItemResponse, error) {
-    request, err := awsgo.BuildRequest(&gir, gir)
+    request, err := awsgo.NewAwsRequest(&gir, gir)
     if err != nil {
         return nil, err
     }
     request.RequestSigningType = awsgo.RequestSigningType_AWS4
-    resp, err := awsgo.DoRequest(&gir, request)
+    resp, err := request.DoAndDemarshall(&gir)
     if resp == nil {
         return nil, err
     }

@@ -179,7 +179,7 @@ func (gir * PutMetricRequest) VerifyInput() (error) {
     }
     gir.CanonicalUri = fmt.Sprintf("%s&Namespace=%s", gir.CanonicalUri, url.QueryEscape(gir.Namespace))
 
-    return gir.RequestBuilder.VerifyInput()
+    return nil
 }
 
 func (gir PutMetricRequest) DeMarshalResponse(response []byte, headers map[string]string, statusCode int) (interface{}) {
@@ -196,7 +196,7 @@ func (gir PutMetricRequest) Request() (*PutMetricResponse, error) {
         return nil, err
     }
     request.RequestSigningType = awsgo.RequestSigningType_AWS4
-    resp, err := awsgo.DoRequest(&gir, request)
+    resp, err := request.DoAndDemarshall(&gir)
     if resp == nil {
         return nil, err
     }
