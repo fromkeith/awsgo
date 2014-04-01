@@ -44,7 +44,9 @@ var (
 type DeleteItemRequest struct {
     awsgo.RequestBuilder
 
+    // keys that we expect to exist, or not exist
     Expected                 map[string]ExpectedItem  `json:",omitempty"`
+    // the key of the entry we are deleting
     DeleteKey                map[string]interface{}  `json:"Key,omitempty"`
     ReturnConsumedCapacity   string
     ReturnItemCollectionMetrics    string
@@ -59,6 +61,7 @@ type DeleteItemResponse struct {
     ItemCollectionMetrics    *ItemCollectionMetricsStruct   `json:",omitempty"`
 }
 
+// Creates a new DeleteItemRequest
 func NewDeleteItemRequest() *DeleteItemRequest {
     req := new(DeleteItemRequest)
 
