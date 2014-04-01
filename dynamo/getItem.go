@@ -49,14 +49,18 @@ type GetItemRequest struct {
 
     AttributesToGet        []string  `json:",omitempty"`
     ConsistentRead         bool     `json:",string"`
+    // The key to search for
     Search                 map[string]interface{}  `json:"Key"`
     TableName              string
     ReturnConsumedCapacity string
 }
 
 type GetItemResponse struct {
+    // if return consumed capacity was set, this will populate with the result
     ConsumedCapacity *CapacityResult             `json:"ConsumedCapacity,omitempty"`
+    // the item response, with easily castable values
     Item             map[string]interface{}      `json:"-"`
+    // the raw item response from the wire
     RawItem          map[string]map[string]interface{}  `json:"Item"`
 }
 
@@ -74,6 +78,7 @@ func (f * GetItemResponseFuture) Get() (*GetItemResponse, error) {
     }
 }
 
+// Creates a new GetItemRequest, populating in some defaults
 func NewGetItemRequest() *GetItemRequest {
     req := new(GetItemRequest)
     req.AttributesToGet = nil
