@@ -178,3 +178,182 @@ func Test_WorkingPutMultiItems(t * testing.T) {
         t.Errorf("ItemCollectionMetrics should be nil")
     }
 }
+
+
+
+func Test_BadResponse(t * testing.T) {
+    handler := http.HandlerFunc(func (w http.ResponseWriter, r * http.Request) {
+        http.Error(w, "sdfsdf", 400)
+    })
+
+    itemReq := NewPutItemRequest()
+    itemReq.TableName = "asd"
+    itemReq.Item["blah"] = "asdf"
+
+    resp, err := doPutItemTest(itemReq, handler)
+    if err == nil {
+        t.Fatalf("Error should not be nil.")
+    }
+    if resp != nil {
+        t.Fatalf("Response should be nil")
+    }
+}
+
+
+func Test_WorkingPutSingleItem_WithExpected(t * testing.T) {
+
+    handler := http.HandlerFunc(func (w http.ResponseWriter, r * http.Request) {
+        expectedRequestBody := `
+        {
+            "Expected" : {
+                "notthere" : {
+                    "Exists": "false"
+                },
+                "there" : {
+                    "Exists" : "true",
+                    "Value" : {
+                        "S" : "dsf"
+                    }
+                },
+                "thereArray" : {
+                    "Exists" : "true",
+                    "Value" : {
+                        "SS" : [
+                            "dsf", "sdfs"
+                        ]
+                    }
+                },
+                "thereNum" : {
+                    "Exists" : "true",
+                    "Value" : {
+                        "N" : "23.000000"
+                    }
+                },
+                "thereNumArray" : {
+                    "Exists" : "true",
+                    "Value" : {
+                        "NS" : [
+                            "23.000000", "43.000000"
+                        ]
+                    }
+                }
+            },
+            "Item" : {
+                "blah" : {
+                    "S" : "as"
+                }
+            },
+            "TableName": "asd",
+            "ReturnConsumedCapacity" : "NONE",
+            "ReturnItemCollectionMetrics" : "NONE",
+            "ReturnValues" : "NONE"
+        }
+        `
+        expectedCompactBuf := bytes.Buffer{}
+        json.Compact(&expectedCompactBuf, []byte(expectedRequestBody))
+
+        defer r.Body.Close()
+        body, err := ioutil.ReadAll(r.Body)
+        if err != nil {
+            t.Fatal("couldn't read content! error: %v", err)
+        }
+
+        if expectedCompactBuf.String() != string(body) {
+            t.Errorf("Bodies don't match. Expected: %s. Got %s", expectedCompactBuf.String(), string(body))
+        }
+        fmt.Fprintf(w, "{}")
+    })
+
+    itemReq := NewPutItemRequest()
+    itemReq.TableName = "asd"
+    itemReq.Item["blah"] = "as"
+    itemReq.Expected["notthere"] = ExpectedItem{false, nil}
+    itemReq.Expected["there"] = ExpectedItem{true, "dsf"}
+    itemReq.Expected["thereArray"] = ExpectedItem{true, []string{"dsf", "sdfs"}}
+    itemReq.Expected["thereNum"] = ExpectedItem{true, 23}
+    itemReq.Expected["thereNumArray"] = ExpectedItem{true, []float64{23,43}}
+
+    resp, err := doPutItemTest(itemReq, handler)
+    if err != nil {
+        t.Fatalf("Error should be nil. Got: %v", err)
+    }
+    if len(resp.BeforeAttributes) != 0 {
+        t.Errorf("BeforeAttributes should be 0 length")
+    }
+    if resp.ConsumedCapacity != nil {
+        t.Errorf("ConsumedCapacity should be nil")
+    }
+    if resp.ItemCollectionMetrics != nil {
+        t.Errorf("ItemCollectionMetrics should be nil")
+    }
+}
+
+
+func Test_ReturnItemCollectionMetrics(t * testing.T) {
+
+    handler := http.HandlerFunc(func (w http.ResponseWriter, r * http.Request) {
+        expectedRequestBody := `
+        {
+            "Item" : {
+                "blah" : {
+                    "S" : "asdf"
+                }
+            },
+            "TableName": "asd",
+            "ReturnConsumedCapacity" : "NONE",
+            "ReturnItemCollectionMetrics" : "SIZE",
+            "ReturnValues" : "NONE"
+        }
+        `
+        expectedCompactBuf := bytes.Buffer{}
+        json.Compact(&expectedCompactBuf, []byte(expectedRequestBody))
+
+        defer r.Body.Close()
+        body, err := ioutil.ReadAll(r.Body)
+        if err != nil {
+            t.Fatal("couldn't read content! error: %v", err)
+        }
+
+        if expectedCompactBuf.String() != string(body) {
+            t.Errorf("Bodies don't match. Expected: %s. Got %s", expectedCompactBuf.String(), string(body))
+        }
+        fmt.Fprintf(w, `{
+            "ItemCollectionMetrics" : {
+                "ItemCollectionKey" : {
+                    "blah" : {
+                        "S" : "Hello There"
+                    }
+                },
+                "SizeEstimateRangeGB" : [
+                    "1.2"
+                ]
+            }
+        }`)
+    })
+
+    itemReq := NewPutItemRequest()
+    itemReq.TableName = "asd"
+    itemReq.Item["blah"] = "asdf"
+    itemReq.ReturnItemCollectionMetrics = ReturnItemCollection_SIZE
+
+    resp, err := doPutItemTest(itemReq, handler)
+    if err != nil {
+        t.Fatalf("Error should be nil. Got: %v", err)
+    }
+    if len(resp.BeforeAttributes) != 0 {
+        t.Errorf("BeforeAttributes should be 0 length")
+    }
+    if resp.ConsumedCapacity != nil {
+        t.Errorf("ConsumedCapacity should be nil")
+    }
+    if resp.ItemCollectionMetrics == nil {
+        t.Errorf("ItemCollectionMetrics should not be nil")
+    }
+    if v, ok := resp.ItemCollectionMetrics.ItemCollectionKey["blah"]; !ok {
+        t.Errorf("Expected 'blah' key")
+    } else if vs, ok := v.(string); !ok {
+        t.Errorf("Expected key to be string. got %T", v)
+    } else if vs != "Hello There" {
+        t.Errorf("Wrong value for vs")
+    }
+}

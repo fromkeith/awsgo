@@ -175,6 +175,8 @@ func (request AwsRequest) DoAndDemarshall(rb RequestBuilderInterface) (interface
     }
     responseContent = []byte(buf.String())
 
+    //fmt.Println("responseContent")
+
     val := rb.DeMarshalResponse(responseContent, responseHeaders, statusCode)
     if t, ok := val.(error); ok {
         return nil, t

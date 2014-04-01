@@ -163,6 +163,10 @@ func (gir BatchWriteItemRequest) DeMarshalResponse(response []byte, headers map[
             }
         }
     }
+    if giResponse.ItemCollectionMetrics != nil {
+        giResponse.ItemCollectionMetrics.ItemCollectionKey = make(map[string]interface{})
+        awsgo.FromRawMapToEasyTypedMap(giResponse.ItemCollectionMetrics.RawItemCollectionKey, giResponse.ItemCollectionMetrics.ItemCollectionKey)
+    }
     return giResponse
 }
 

@@ -115,9 +115,9 @@ type KeyConditions struct {
 
 
 type ItemCollectionMetricsStruct struct {
-    RawItemCollectionKey        map[string]map[string]string   `json:"ItemCollectionKey"`
+    RawItemCollectionKey        map[string]map[string]interface{}   `json:"ItemCollectionKey"`
     ItemCollectionKey           map[string]interface{}  `json:"-"`
-    SizeEstimateRangeGB         []float64         `json:",string"`
+    SizeEstimateRangeGB         []string
 }
 
 type ErrorResult struct {

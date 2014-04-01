@@ -45,7 +45,7 @@ import (
 )
 
 const (
-    TEST_TABLE_NAME = "test.table"
+    TEST_TABLE_NAME = "fromkeith.conquer.testgame"// "test.table"
     TEST_SQS_QUEUE = "1234"
     TEST_ITEM_NAME = "Game"
     TEST_S3_BUCKET = "testbucket"
@@ -141,10 +141,11 @@ func TestUpdateItem() {
 
 func TestPutItem() {
     itemRequest := dynamo.NewPutItemRequest()
-    itemRequest.Item[TEST_ITEM_NAME] = "helloThere!"
+    itemRequest.Item[TEST_ITEM_NAME] = "helloThere!s!!"
     itemRequest.Item["AnotherVal"] = "asdf"
     itemRequest.TableName = TEST_TABLE_NAME
     itemRequest.ReturnValues = dynamo.ReturnValues_ALL_OLD
+    itemRequest.ReturnItemCollectionMetrics = dynamo.ItemCollectionMetrics_SIZE
 
     itemRequest.Host.Region = "us-west-2"
     itemRequest.Host.Domain = "amazonaws.com"
@@ -387,13 +388,13 @@ func TestPutMetric() {
 
 func main() {
 
-    TestGetItem()
-    TestUpdateItem()
+    //TestGetItem()
+    //TestUpdateItem()
     TestPutItem()
-    TestDeleteItem()
-    TestBatchGetItem()
-    TestBatchWriteItem()
-    TestQuery()
+    //TestDeleteItem()
+    //TestBatchGetItem()
+    //TestBatchWriteItem()
+    //TestQuery()
     //TestPutS3File()
     //TestSqsSendMessage()
     //TestSqsReceiveMessage()

@@ -136,6 +136,10 @@ func (pir PutItemRequest) DeMarshalResponse(response []byte, headers map[string]
         piResponse.BeforeAttributes = make(map[string]interface{})
         awsgo.FromRawMapToEasyTypedMap(piResponse.RawBeforeAttributes, piResponse.BeforeAttributes)
     }
+    if piResponse.ItemCollectionMetrics != nil {
+        piResponse.ItemCollectionMetrics.ItemCollectionKey = make(map[string]interface{})
+        awsgo.FromRawMapToEasyTypedMap(piResponse.ItemCollectionMetrics.RawItemCollectionKey, piResponse.ItemCollectionMetrics.ItemCollectionKey)
+    }
     return piResponse
 }
 
