@@ -44,7 +44,7 @@ type PutItemRequest struct {
     Item                    map[string]interface{}  `json:"Item"`
     TableName               string
     ReturnConsumedCapacity  string
-    ReturnItemCollection    string
+    ReturnItemCollectionMetrics  string
     ReturnValues            string
 }
 
@@ -76,14 +76,14 @@ func NewPutItemRequest() *PutItemRequest {
     req.Expected = make(map[string]ExpectedItem)
     req.TableName = ""
     req.ReturnConsumedCapacity = ConsumedCapacity_NONE
-    req.ReturnItemCollection = ReturnItemCollection_NONE
+    req.ReturnItemCollectionMetrics = ReturnItemCollection_NONE
     req.ReturnValues = ReturnValues_NONE
     req.Headers = make(map[string]string)
     req.Headers["X-Amz-Target"] = PutItemTarget
     req.RequestMethod = "POST"
     req.CanonicalUri = "/"
 
-    req.Host.Service = ""
+    req.Host.Service = "dynamodb"
     req.Host.Region = ""
     req.Host.Domain = ""
     req.Key.AccessKeyId = ""
@@ -92,7 +92,6 @@ func NewPutItemRequest() *PutItemRequest {
 }
 
 func (pir * PutItemRequest) VerifyInput() (error) {
-    pir.Host.Service = "dynamodb"
     if len(pir.TableName) == 0 {
         return errors.New("TableName cannot be empty")
     }

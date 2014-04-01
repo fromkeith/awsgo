@@ -41,8 +41,10 @@ type awsStringItem struct {
     Values []string   `json:"SS,omitempty"`
 }
 type awsNumberItem struct {
-    Value float64    `json:"N,string"`
-    Values []float64 `json:"NN,string,omitempty"`
+    Value float64       `json:"-"`
+    Values []float64    `json:"-"`
+    ValuesStr []string  `json:"NS,omitempty"`
+    ValueStr string     `json:"N,omitempty"`
 }
 
 
@@ -63,10 +65,13 @@ func newNumberItem(items ... float64) awsNumberItem {
     var s awsNumberItem
     if (len(items) == 1) {
         s.Value = items[0]
+        s.ValueStr = fmt.Sprintf("%f", items[0])
     } else {
         s.Values = make([]float64, len(items))
+        s.ValuesStr = make([]string, len(items))
         for i, val := range items {
             s.Values[i] = val
+            s.ValuesStr[i] = fmt.Sprintf("%f", val)
         }
     }
     return s
@@ -95,23 +100,23 @@ func ConvertToAwsItem(unknown interface{}) interface{} {
             for i := range j {
                 vals64[i] = float64(j[i])
             }
-            return awsNumberItem{0, vals64}
+            return newNumberItem(vals64...)
         case []int64:
             // we need to cast these over
             vals64 := make([]float64, len(j))
             for i := range j {
                 vals64[i] = float64(j[i])
             }
-            return awsNumberItem{0, vals64}
+            return newNumberItem(vals64...)
         case []float32:
             // we need to cast these over
             vals64 := make([]float64, len(j))
             for i := range j {
                 vals64[i] = float64(j[i])
             }
-            return awsNumberItem{0, vals64}
+            return newNumberItem(vals64...)
         case []float64:
-            return awsNumberItem{0, j}
+            return newNumberItem(j...)
         case awsNumberItem:
             return j
         case awsStringItem:
