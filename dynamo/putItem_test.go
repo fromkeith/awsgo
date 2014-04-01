@@ -458,3 +458,53 @@ func Test_ReturnAttributes(t * testing.T) {
         t.Errorf("Expecting asdf length 2. got: %d", len(vs))
     }
 }
+
+
+func Test_NoItem(t * testing.T) {
+
+    handler := http.HandlerFunc(func (w http.ResponseWriter, r * http.Request) {
+        t.Fatal("Should not have been completed")
+    })
+
+    itemReq := NewPutItemRequest()
+    itemReq.TableName = "asd"
+
+    _, err := doPutItemTest(itemReq, handler)
+    if err == nil {
+        t.Fatalf("Error should not be nil.")
+    }
+}
+
+func Test_NoTable(t * testing.T) {
+
+    handler := http.HandlerFunc(func (w http.ResponseWriter, r * http.Request) {
+        t.Fatal("Should not have been completed")
+    })
+
+    itemReq := NewPutItemRequest()
+    itemReq.Item["asd"] = "Asd"
+
+    _, err := doPutItemTest(itemReq, handler)
+    if err == nil {
+        t.Fatalf("Error should not be nil.")
+    }
+}
+
+
+func Test_BadResponse_GoodStatusCode(t * testing.T) {
+    handler := http.HandlerFunc(func (w http.ResponseWriter, r * http.Request) {
+        http.Error(w, "sdfsdf", 200)
+    })
+
+    itemReq := NewPutItemRequest()
+    itemReq.TableName = "asd"
+    itemReq.Item["blah"] = "asdf"
+
+    resp, err := doPutItemTest(itemReq, handler)
+    if err == nil {
+        t.Fatalf("Error should not be nil.")
+    }
+    if resp != nil {
+        t.Fatalf("Response should be nil")
+    }
+}
