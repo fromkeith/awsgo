@@ -124,7 +124,7 @@ func (gi * GetObjectRequest) VerifyInput() (error) {
 
 
 func (gor GetObjectRequest) Request() (*GetObjectResponse, error) {
-    request, err := awsgo.BuildReaderRequest(&gor, nil)
+    request, err := awsgo.BuildRequest(&gor, nil)
     if err != nil {
         return nil, err
     }

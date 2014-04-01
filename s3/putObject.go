@@ -135,7 +135,7 @@ func (por PutObjectRequest) CoDoRequest(request awsgo.AwsRequest, future * PutOb
 }
 
 func (por PutObjectRequest) Request() (*PutObjectResponse, error) {
-    request, err := awsgo.BuildReaderRequest(&por, por.Source)
+    request, err := awsgo.BuildRequest(&por, por.Source)
     if err != nil {
         return nil, err
     }

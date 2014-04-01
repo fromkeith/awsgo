@@ -39,7 +39,6 @@ import (
     "crypto/x509"
     "encoding/base64"
     "encoding/json"
-    "encoding/xml"
     "errors"
     "fmt"
     "github.com/pmylund/sortutil"
@@ -61,176 +60,10 @@ const (
     RequestSigningType_REST = 2
 )
 
-type AwsStringItem struct {
-    Value string      `json:"S,omitempty"`
-    Values []string   `json:"SS,omitempty"`
-}
-type AwsNumberItem struct {
-    Value float64    `json:"N,string"`
-    Values []float64 `json:"NN,string,omitempty"`
-}
 
 type ResponseMetaData struct {
     RequestId string
 }
-
-func NewStringItem(items ... string) AwsStringItem {
-    var s AwsStringItem
-    if (len(items) == 1) {
-        s.Value = items[0]
-    } else {
-        s.Values = make([]string, len(items))
-        for i, val := range items {
-            s.Values[i] = val
-        }
-    }
-    return s
-}
-
-func NewNumberItem(items ... float64) AwsNumberItem {
-    var s AwsNumberItem
-    if (len(items) == 1) {
-        s.Value = items[0]
-    } else {
-        s.Values = make([]float64, len(items))
-        for i, val := range items {
-            s.Values[i] = val
-        }
-    }
-    return s
-}
-
-
-/** Converts from an unknown interface... like:
- *      string, []string, float, []float64
- *  into the expected awsgo.AwsStringItem or awsgo.AwsNumberItem
- */
-func ConvertToAwsItem(unknown interface{}) interface{} {
-    switch j := unknown.(type) {
-        case string:
-            return NewStringItem(j)
-        case float64:
-            return NewNumberItem(j)
-        case int:
-            return NewNumberItem(float64(j))
-        case float32:
-            return NewNumberItem(float64(j))
-        case int64:
-            return NewNumberItem(float64(j))
-        case []string:
-            return AwsStringItem{"", j}
-        case []int:
-            // we need to cast these over
-            vals64 := make([]float64, len(j))
-            for i := range j {
-                vals64[i] = float64(j[i])
-            }
-            return AwsNumberItem{0, vals64}
-        case []int64:
-            // we need to cast these over
-            vals64 := make([]float64, len(j))
-            for i := range j {
-                vals64[i] = float64(j[i])
-            }
-            return AwsNumberItem{0, vals64}
-        case []float32:
-            // we need to cast these over
-            vals64 := make([]float64, len(j))
-            for i := range j {
-                vals64[i] = float64(j[i])
-            }
-            return AwsNumberItem{0, vals64}
-        case []float64:
-            return AwsNumberItem{0, j}
-        case AwsNumberItem:
-            return j
-        case AwsStringItem:
-            return j
-        default:
-            panic(fmt.Sprintf("Unknown data type: %v %T", j, j))
-            return j
-    }
-    return unknown
-}
-
-func FromRawMapToEasyTypedMap(raw map[string]map[string]interface{}, item map[string]interface{}) {
-    for key, value := range raw {
-        if v, ok := value["S"]; ok {
-            switch t := v.(type) {
-            case string:
-                item[key] = t
-                break
-            default:
-                panic("Item map was type 'S' but did not have string content!")
-            }
-        }
-        if v, ok := value["SS"]; ok {
-            if t, ok := v.([]interface{}); ok {
-                vals := make([]string, len(t))
-                for i := range t {
-                    if t2, ok := t[i].(string); ok {
-                        vals[i] = t2
-                    } else {
-                        panic(fmt.Sprintf("Expected string in SS but got: %T", t[i]))
-                    }
-                }
-                item[key] = vals
-            } else {
-                panic(fmt.Sprintf("Item map was type 'NS' but did not have []string content! (We expect it as string, but convert to []float). Got %T", t))
-            }
-        }
-        if v, ok := value["N"]; ok {
-            switch t := v.(type) {
-            case string:
-                f, _ := strconv.ParseFloat(t, 64)
-                item[key] = f
-                break
-            default:
-                panic(fmt.Sprintf("Item map was type 'N' but did not have string content! (We expect it as string, but convert to float). Got %T", t))
-            }
-        }
-        if v, ok := value["NS"]; ok {
-            if t, ok := v.([]interface{}); ok {
-                nums := make([]float64, len(t))
-                for i := range t {
-                    if t2, ok := t[i].(string); ok {
-                        nums[i], _ = strconv.ParseFloat(t2, 64)
-                    } else {
-                        panic(fmt.Sprintf("Expected string in NS but got: %T", t[i]))
-                    }
-                }
-                item[key] = nums
-            } else {
-                panic(fmt.Sprintf("Item map was type 'NS' but did not have []string content! (We expect it as string, but convert to []float). Got %T", t))
-            }
-        }
-    }
-}
-
-func CheckForErrorXml(response []byte) error {
-    errorResponse := new(ErrorResponse)
-    xml.Unmarshal(response, errorResponse)
-    if errorResponse.ErrorT.Message != "" {
-        return errorResponse
-    }
-    return nil
-}
-
-
-type Error struct {
-    Type    string
-    Code    string
-    Message string
-}
-type ErrorResponse struct {
-    ErrorT   Error      `xml:"Error"`
-    RequestId string
-}
-
-func (e * ErrorResponse) Error() string {
-    return e.ErrorT.Code
-}
-
 
 type AwsHost struct {
     Service string
@@ -249,25 +82,13 @@ type RequestBuilder struct {
 
 type RequestBuilderInterface interface {
     VerifyInput() error
-    CreateJsonAwsRequest(marsh interface{}) AwsRequest
-    CreateReaderAwsRequest(r io.ReadCloser) AwsRequest
+    GetRequestBuilder() RequestBuilder
     DeMarshalResponse(response []byte, headers map[string]string, statusCode int) (interface{})
 }
 
-
-type UnmarhsallingError struct {
-    ActualContent       string
-    MarshallError       error
+func (r RequestBuilder) GetRequestBuilder() RequestBuilder {
+    return r
 }
-func (e * UnmarhsallingError) Error() string {
-    return "Error unmarshalling response"
-}
-
-var (
-    Verification_Error_DomainEmpty = errors.New("Host.Domain cannot be empty")
-    Verification_Error_AccessKeyEmpty = errors.New("Key.AccessKeyId cannot be empty")
-    Verification_Error_SecretAccessKeyEmpty = errors.New("Key.SecretAccessKey cannot be empty")
-)
 
 func (r * RequestBuilder) VerifyInput() (error) {
     if len(r.Host.Domain) == 0 {
@@ -282,30 +103,24 @@ func (r * RequestBuilder) VerifyInput() (error) {
     return nil
 }
 
-func (rb RequestBuilder) CreateJsonAwsRequest(marsh interface{}) (request AwsRequest) {
+func createJsonAwsRequest(rb RequestBuilder, marsh interface{}) (request AwsRequest) {
     request.Host = rb.Host
     request.Key = rb.Key
     request.Headers = rb.Headers
     request.RequestMethod = rb.RequestMethod
     request.CanonicalUri = rb.CanonicalUri
     request.Date = time.Now()
-    pay, _ := json.Marshal(marsh)
-    request.Payload = string(pay)
-    if request.Headers == nil {
-        request.Headers = make(map[string]string)
+    if r, ok := marsh.(io.ReadCloser); ok {
+        request.PayloadReader = r
+    } else {
+        pay, _ := json.Marshal(marsh)
+        request.Payload = string(pay)
+        if request.Headers == nil {
+            request.Headers = make(map[string]string)
+        }
+        request.Headers["Content-Type"] = "application/x-amz-json-1.0"
+        request.Headers["Content-Length"] = fmt.Sprintf("%d", len(request.Payload))
     }
-    request.Headers["Content-Type"] = "application/x-amz-json-1.0"
-    request.Headers["Content-Length"] = fmt.Sprintf("%d", len(request.Payload))
-    return
-}
-func (rb RequestBuilder) CreateReaderAwsRequest(r io.ReadCloser) (request AwsRequest) {
-    request.Host = rb.Host
-    request.Key = rb.Key
-    request.Headers = rb.Headers
-    request.RequestMethod = rb.RequestMethod
-    request.CanonicalUri = rb.CanonicalUri
-    request.Date = time.Now()
-    request.PayloadReader = r
     return
 }
 
@@ -326,21 +141,12 @@ func BuildRequest(rb RequestBuilderInterface, marsh interface{}) (request AwsReq
     if verifyError != nil {
         return request, verifyError
     }
-    request = rb.CreateJsonAwsRequest(marsh)
+    request = createJsonAwsRequest(rb.GetRequestBuilder(), marsh)
     return request, nil
 }
 
 func BuildEmptyContentRequest(rb RequestBuilderInterface) (request AwsRequest, verifyError error) {
-    return BuildReaderRequest(rb, ioutil.NopCloser(bytes.NewBuffer([]byte(""))))
-}
-
-func BuildReaderRequest(rb RequestBuilderInterface, r io.ReadCloser) (request AwsRequest, verifyError error) {
-    verifyError = rb.VerifyInput()
-    if verifyError != nil {
-        return request, verifyError
-    }
-    request = rb.CreateReaderAwsRequest(r)
-    return request, nil
+    return BuildRequest(rb, ioutil.NopCloser(bytes.NewBuffer([]byte(""))))
 }
 
 type AwsRequest struct {
