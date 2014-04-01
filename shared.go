@@ -34,7 +34,6 @@ import (
     "bytes"
     "crypto/hmac"
     "crypto/md5"
-    "crypto/sha1"
     "crypto/sha256"
     "crypto/x509"
     "encoding/base64"
@@ -42,15 +41,12 @@ import (
     "errors"
     "fmt"
     "github.com/pmylund/sortutil"
-    "hash"
     "io"
     "io/ioutil"
     "net/http"
     "net/url"
-    "os"
     "strconv"
     "strings"
-    "sync"
     "time"
     "crypto/tls"
 )
@@ -60,24 +56,8 @@ const (
     RequestSigningType_REST = 2
 )
 
-// Meta data in a lot of aws requests
-type ResponseMetaData struct {
-    RequestId string
-}
 
-// The host of the service we are hitting.
-// Urls are formed by taking Service.Region.Domain
-type AwsHost struct {
-    // Eg. dynamo
-    Service string
-    // Eg us-west-2
-    Region string
-    // Eg. amazonaws.com
-    Domain string
-    // If you want to hit your own custom test service.
-    // Generally leave nil to use go's default cert chain.
-    CustomCertificates []*x509.Certificate
-}
+
 
 // Base of a request. Used across all requests.
 type RequestBuilder struct {
@@ -165,27 +145,19 @@ func createAwsRequest(rb RequestBuilder, marsh interface{}) (request AwsRequest)
 // and then create a new AwsRequest instance.
 // returned Request is only valid if error is not nill
 func NewAwsRequest(rb RequestBuilderInterface, marsh interface{}) (request AwsRequest, verifyError error) {
+    verifyError = rb.VerifyInput()
+    if verifyError != nil {
+        return
+    }
     verifyError = verifyInput(rb.GetRequestBuilder())
     if verifyError != nil {
         return
     }
-    verifyError = rb.VerifyInput()
-    if verifyError != nil {
-        return request, verifyError
-    }
     request = createAwsRequest(rb.GetRequestBuilder(), marsh)
-    return request, nil
+    return
 }
 
-// concat the parts together into a hostname.
-func (h AwsHost) ToString() string {
-    if h.Region == "" {
-        return fmt.Sprintf("%s.%s",
-            h.Service, h.Domain)
-    }
-    return fmt.Sprintf("%s.%s.%s",
-        h.Service, h.Region, h.Domain)
-}
+
 
 // Perform the actual request, calling the demarshall on the RequestBuilderInterface
 // returns the result of the Demarshall, or other errors.
@@ -440,157 +412,3 @@ func (req * AwsRequest) createSignature() {
             req.Key.AccessKeyId, simpleDate(req.Date), req.Host.Region, fixedService, signedHeaders, req.signature)
 }
 
-
-
-type Credentials struct {
-    AccessKeyId     string
-    SecretAccessKey string
-    Token           string // used when you are using the IAM role. Otherwise should be empty
-    Expiration time.Time
-}
-
-var cachedCredentials Credentials
-var credentialLock sync.Mutex
-
-func determineSecurityRole() (string, error) {
-    metaDataUrl := "http://169.254.169.254/latest/meta-data/iam/security-credentials"
-    metaDataUri, _ := url.Parse(metaDataUrl)
-    hreq := http.Request {
-        URL: metaDataUri,
-        Method: "GET",
-        ProtoMajor: 1,
-        ProtoMinor: 1,
-        Close: true,
-    }
-    resp, err := http.DefaultClient.Do(&hreq)
-    if err != nil {
-        return "", errors.New("Failed to create HTTP Client")
-    }
-    defer resp.Body.Close()
-    buf := bytes.NewBuffer(make([]byte, 0))
-    io.Copy(buf, resp.Body)
-
-    if resp.StatusCode != 200 {
-        return "", errors.New(fmt.Sprintf("Got Status code: %d", resp.StatusCode))
-    }    
-    return buf.String(), nil
-}
-
-type CredentialMetaData struct {
-    Code string
-    LastUpdated string
-    Type string
-    AccessKeyId string
-    SecretAccessKey string
-    Token string
-    Expiration string
-}
-
-func credentialsAreLocal() bool {
-    f, err := os.Open("awskeys.json")
-    if err != nil {
-        return false
-    }
-    defer f.Close()
-    buf := bytes.NewBuffer(make([]byte, 0))
-    io.Copy(buf, f)
-    var tmp Credentials
-    if err = json.Unmarshal([]byte(buf.String()), &tmp); err != nil {
-        return false
-    }
-    if tmp.AccessKeyId == "" || tmp.SecretAccessKey == "" {
-        return false
-    }
-    // expire in 10 hours
-    tmp.Expiration = time.Now().Add(time.Hour * 10)
-    cachedCredentials = tmp
-    return true
-}
-
-/** Returns security credentials either from a JSON file 'awskeys.json' or
- * from AWS Metadata service
- * @return credentials, error
- */
-func GetSecurityKeys() (finalCred Credentials, err error)  {
-    if cachedCredentials.AccessKeyId == "" || cachedCredentials.Expiration.Unix() < time.Now().Unix() {
-        credentialLock.Lock()
-        defer credentialLock.Unlock()
-        if cachedCredentials.AccessKeyId == "" || cachedCredentials.Expiration.Unix() < time.Now().Unix()  {
-            if !credentialsAreLocal() {
-                var role string
-                role, err = determineSecurityRole()
-                if err != nil {
-                    return
-                }
-                credentialUrl := fmt.Sprintf("http://169.254.169.254/latest/meta-data/iam/security-credentials/%s", role)
-                credentialUri, _ := url.Parse(credentialUrl)
-                hreq := http.Request {
-                    URL: credentialUri,
-                    Method: "GET",
-                    ProtoMajor: 1,
-                    ProtoMinor: 1,
-                    Close: true,
-                }
-                resp, err2 := http.DefaultClient.Do(&hreq)
-                if err2 != nil {
-                    err = errors.New("Failed to create HTTP Client")
-                    return
-                }
-                defer resp.Body.Close()
-
-                buf := bytes.NewBuffer(make([]byte, 0))
-                io.Copy(buf, resp.Body)
-
-                if resp.StatusCode != 200 {
-                    err = errors.New(fmt.Sprintf("Got Status code: %d", resp.StatusCode))
-                    return
-                }
-
-                var credentials CredentialMetaData
-                if err = json.Unmarshal([]byte(buf.String()), &credentials); err != nil {
-                    return
-                }
-
-                if credentials.Code != "Success" {
-                    err = errors.New("Failed to get security keys")
-                    return
-                }
-
-                var tmp Credentials
-                tmp.AccessKeyId = credentials.AccessKeyId
-                tmp.SecretAccessKey = credentials.SecretAccessKey
-                tmp.Expiration, _ = time.Parse("2006-01-02T15:04:05Z", credentials.Expiration)
-                tmp.Token = credentials.Token
-                cachedCredentials = tmp
-            }
-        }
-    }
-    finalCred = cachedCredentials
-    err = nil
-    return 
-}
-
-
-
-// 20110909
-func simpleDate(d time.Time) string {
-    d = d.UTC()
-    return fmt.Sprintf("%d%0.2d%0.2d",
-        d.Year(), d.Month(), d.Day())
-}
-// 20130315T092054Z ISO 8601 basic format
-func IsoDate(t time.Time) string {
-  t = t.UTC()
-  return fmt.Sprintf("%04d%02d%02dT%02d%02d%02dZ", t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second());
-}
-
-func createHMacHasher256() hash.Hash {
-    return sha256.New()
-}
-func createHMacHasher1() hash.Hash {
-    return sha1.New()
-}
-
-func BuildEmptyContentRequest(rb RequestBuilderInterface) (request AwsRequest, verifyError error) {
-    return NewAwsRequest(rb, ioutil.NopCloser(bytes.NewBuffer([]byte(""))))
-}
