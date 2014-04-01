@@ -356,4 +356,105 @@ func Test_ReturnItemCollectionMetrics(t * testing.T) {
     } else if vs != "Hello There" {
         t.Errorf("Wrong value for vs")
     }
+    if len(resp.ItemCollectionMetrics.SizeEstimateRangeGB) != 1 {
+        t.Errorf("Expected 1 size item")
+    } else if resp.ItemCollectionMetrics.SizeEstimateRangeGB[0] != "1.2" {
+        t.Errorf("Expected value 1.2 got: %s", resp.ItemCollectionMetrics.SizeEstimateRangeGB[0])
+    }
+}
+
+
+func Test_ReturnAttributes(t * testing.T) {
+
+    handler := http.HandlerFunc(func (w http.ResponseWriter, r * http.Request) {
+        expectedRequestBody := `
+        {
+            "Item" : {
+                "blah" : {
+                    "S" : "asdf"
+                },
+                "huh" : {
+                    "N": "57.000000"
+                },
+                "huh2" : {
+                    "NS": ["4343.000000", "44.000000"]
+                }
+            },
+            "TableName": "asd",
+            "ReturnConsumedCapacity" : "NONE",
+            "ReturnItemCollectionMetrics" : "NONE",
+            "ReturnValues" : "ALL_NEW"
+        }
+        `
+        expectedCompactBuf := bytes.Buffer{}
+        json.Compact(&expectedCompactBuf, []byte(expectedRequestBody))
+
+        defer r.Body.Close()
+        body, err := ioutil.ReadAll(r.Body)
+        if err != nil {
+            t.Fatal("couldn't read content! error: %v", err)
+        }
+
+        if expectedCompactBuf.String() != string(body) {
+            t.Errorf("Bodies don't match. Expected: %s. Got %s", expectedCompactBuf.String(), string(body))
+        }
+        fmt.Fprintf(w, `{
+            "Attributes" : {
+                "blah" : {
+                    "S": "asdf"
+                },
+                "huh" : {
+                    "N": "57"
+                },
+                "huh2" : {
+                    "NS": ["4343", "44"]
+                }
+            }
+        }`)
+    })
+
+    itemReq := NewPutItemRequest()
+    itemReq.TableName = "asd"
+    itemReq.Item["blah"] = "asdf"
+    itemReq.Item["huh"] = 57
+    itemReq.Item["huh2"] = []float64{4343, 44}
+    itemReq.ReturnValues = ReturnValues_ALL_NEW
+
+    resp, err := doPutItemTest(itemReq, handler)
+    if err != nil {
+        t.Fatalf("Error should be nil. Got: %v", err)
+    }
+    if len(resp.BeforeAttributes) == 0 {
+        t.Errorf("BeforeAttributes should not be 0 length")
+    }
+    if resp.ConsumedCapacity != nil {
+        t.Errorf("ConsumedCapacity should be nil")
+    }
+    if resp.ItemCollectionMetrics != nil {
+        t.Errorf("ItemCollectionMetrics should be nil")
+    }
+
+    if v, ok := resp.BeforeAttributes["blah"]; !ok {
+        t.Errorf("Blah not found in return")
+    } else if vs, ok := v.(string); !ok {
+        t.Errorf("blah should be type string. got: %T", v)
+    } else if vs != "asdf" {
+        t.Errorf("Expecting asdf got: %s", vs)
+    }
+
+    if v, ok := resp.BeforeAttributes["huh"]; !ok {
+        t.Errorf("huh not found in return")
+    } else if vs, ok := v.(float64); !ok {
+        t.Errorf("huh should be type float64. got: %T", v)
+    } else if vs != 57 {
+        t.Errorf("Expecting asdf got: %d", vs)
+    }
+
+    if v, ok := resp.BeforeAttributes["huh2"]; !ok {
+        t.Errorf("huh2 not found in return")
+    } else if vs, ok := v.([]float64); !ok {
+        t.Errorf("huh2 should be type []float64. got: %T", v)
+    } else if len(vs) != 2 {
+        t.Errorf("Expecting asdf length 2. got: %d", len(vs))
+    }
 }
