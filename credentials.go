@@ -44,11 +44,12 @@ import (
 )
 
 
+// Aws credentials
 type Credentials struct {
     AccessKeyId     string
     SecretAccessKey string
-    Token           string // used when you are using the IAM role. Otherwise should be empty
-    Expiration time.Time
+    token           string // used when you are using the IAM role. Otherwise should be empty
+    expiration time.Time
 }
 
 var cachedCredentials Credentials
@@ -74,7 +75,7 @@ func determineSecurityRole() (string, error) {
 
     if resp.StatusCode != 200 {
         return "", errors.New(fmt.Sprintf("Got Status code: %d", resp.StatusCode))
-    }    
+    }
     return buf.String(), nil
 }
 
@@ -104,7 +105,7 @@ func credentialsAreLocal() bool {
         return false
     }
     // expire in 10 hours
-    tmp.Expiration = time.Now().Add(time.Hour * 10)
+    tmp.expiration = time.Now().Add(time.Hour * 10)
     cachedCredentials = tmp
     return true
 }
@@ -114,10 +115,10 @@ func credentialsAreLocal() bool {
  * @return credentials, error
  */
 func GetSecurityKeys() (finalCred Credentials, err error)  {
-    if cachedCredentials.AccessKeyId == "" || cachedCredentials.Expiration.Unix() < time.Now().Unix() {
+    if cachedCredentials.AccessKeyId == "" || cachedCredentials.expiration.Unix() < time.Now().Unix() {
         credentialLock.Lock()
         defer credentialLock.Unlock()
-        if cachedCredentials.AccessKeyId == "" || cachedCredentials.Expiration.Unix() < time.Now().Unix()  {
+        if cachedCredentials.AccessKeyId == "" || cachedCredentials.expiration.Unix() < time.Now().Unix()  {
             if !credentialsAreLocal() {
                 var role string
                 role, err = determineSecurityRole()
@@ -161,8 +162,8 @@ func GetSecurityKeys() (finalCred Credentials, err error)  {
                 var tmp Credentials
                 tmp.AccessKeyId = credentials.AccessKeyId
                 tmp.SecretAccessKey = credentials.SecretAccessKey
-                tmp.Expiration, _ = time.Parse("2006-01-02T15:04:05Z", credentials.Expiration)
-                tmp.Token = credentials.Token
+                tmp.expiration, _ = time.Parse("2006-01-02T15:04:05Z", credentials.Expiration)
+                tmp.token = credentials.Token
                 cachedCredentials = tmp
             }
         }

@@ -107,7 +107,7 @@ func (r RequestBuilder) GetRequestBuilder() RequestBuilder {
 // verify the RequestBuilder base has what is required.
 func verifyInput(r RequestBuilder) (error) {
     if len(r.Host.Domain) == 0 {
-        return Verification_Error_DomainEmpty
+        r.Host.Domain = "amazonaws.com"
     }
     if len(r.Key.AccessKeyId) == 0 {
         return Verification_Error_AccessKeyEmpty
@@ -194,8 +194,8 @@ func (req AwsRequest) Do() (io.ReadCloser, map[string]string, int, error) {
     req.Headers["Host"] = strings.ToLower(req.Host.ToString())
     req.Headers["user-agent"] = "go-aws-client-0.1"
     req.Headers["x-amz-date"] = IsoDate(req.Date)
-    if req.Key.Token != "" {
-        req.Headers["x-amz-security-token"] = req.Key.Token
+    if req.Key.token != "" {
+        req.Headers["x-amz-security-token"] = req.Key.token
     }
 
     if err := signRequest(req); err != nil {

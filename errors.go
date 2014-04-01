@@ -36,7 +36,6 @@ import (
 )
 
 var (
-    Verification_Error_DomainEmpty = errors.New("Host.Domain cannot be empty")
     Verification_Error_AccessKeyEmpty = errors.New("Key.AccessKeyId cannot be empty")
     Verification_Error_SecretAccessKeyEmpty = errors.New("Key.SecretAccessKey cannot be empty")
 )
