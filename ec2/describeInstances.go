@@ -215,7 +215,7 @@ func (gir * DescribeInstancesRequest) VerifyInput() (error) {
 
 func (gir DescribeInstancesRequest) DeMarshalResponse(response []byte, headers map[string]string, statusCode int) (interface{}) {
     giResponse := new(DescribeInstancesResult)
-    fmt.Println(string(response))
+    //fmt.Println(string(response))
     xml.Unmarshal(response, giResponse)
     //json.Unmarshal([]byte(response), giResponse)
     return giResponse

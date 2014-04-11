@@ -392,8 +392,6 @@ func  (req * AwsRequest) createV2Signature() {
             url.QueryEscape(
                 base64.StdEncoding.EncodeToString(sig),
             ), "+", "%20", -1))
-    fmt.Println("ToSign: ", toSign)
-    fmt.Println("Request: ", req.CanonicalUri)
 }
 
 
