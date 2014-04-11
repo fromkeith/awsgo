@@ -33,6 +33,7 @@ import (
     "fmt"
     "github.com/fromkeith/awsgo"
     "github.com/fromkeith/awsgo/dynamo"
+    "github.com/fromkeith/awsgo/ec2"
     "github.com/fromkeith/awsgo/s3"
     "github.com/fromkeith/awsgo/sqs"
     "github.com/fromkeith/awsgo/ses"
@@ -385,12 +386,21 @@ func TestPutMetric() {
     fmt.Println(resp, err)
 }
 
+func TestDescribeInstance() {
+    describe := ec2.NewDescribeInstancesRequest()
+    describe.InstanceIds =  []string{"i-ffffffff"}
+    describe.Host.Region = "us-west-2"
+    describe.Key, _ = awsgo.GetSecurityKeys()
+    resp, err := describe.Request()
+    fmt.Println(resp, err)
+}
+
 
 func main() {
 
     //TestGetItem()
     //TestUpdateItem()
-    TestPutItem()
+    //TestPutItem()
     //TestDeleteItem()
     //TestBatchGetItem()
     //TestBatchWriteItem()
@@ -400,4 +410,5 @@ func main() {
     //TestSqsReceiveMessage()
     //TestSesSendEmail()
     //TestPutMetric()
+    //TestDescribeInstance()
 }

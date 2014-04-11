@@ -54,6 +54,7 @@ import (
 const (
     RequestSigningType_AWS4 = 1
     RequestSigningType_REST = 2
+    RequestSigningType_AWS2 = 3
 )
 
 
@@ -200,7 +201,7 @@ func (req AwsRequest) Do() (io.ReadCloser, map[string]string, int, error) {
         req.Headers["x-amz-security-token"] = req.Key.token
     }
 
-    if err := signRequest(req); err != nil {
+    if err := signRequest(&req); err != nil {
         return nil, nil, 0, err
     }
 
@@ -278,11 +279,13 @@ func getUrl(req AwsRequest) (*url.URL, error) {
     return url.Parse(urlStr)
 }
 
-func signRequest(req AwsRequest) error {
+func signRequest(req *AwsRequest) error {
     if req.RequestSigningType == RequestSigningType_AWS4 {
         req.createSignature()
     } else if req.RequestSigningType == RequestSigningType_REST {
         req.createRestSignature()
+    } else if req.RequestSigningType == RequestSigningType_AWS2 {
+        req.createV2Signature()
     } else {
         return errors.New("Invalid request signing type")
     }
@@ -337,6 +340,60 @@ func (req * AwsRequest) createCanonicalHeaders(prefixReq string) (canonicalHeade
         }
     }
     return
+}
+
+//http://docs.aws.amazon.com/general/latest/gr/signature-version-2.html
+func  (req * AwsRequest) createV2Signature() {
+
+    canonicalQueryString := ""
+    fixedUrl := req.CanonicalUri
+    if !strings.Contains(req.CanonicalUri, "?") {
+        req.CanonicalUri = req.CanonicalUri + "?"
+    } else {
+        req.CanonicalUri = req.CanonicalUri + "&"
+    }
+    now := time.Now()
+
+    req.CanonicalUri = fmt.Sprintf("%sAWSAccessKeyId=%s&SignatureMethod=HmacSHA256&SignatureVersion=2&Timestamp=%s",
+        req.CanonicalUri,
+        strings.Replace(url.QueryEscape(req.Key.AccessKeyId), "+", "%20", -1),
+        strings.Replace(url.QueryEscape(now.Format(time.RFC3339)), "+", "%20", -1),
+        )
+    if req.Key.token != "" {
+        req.CanonicalUri = fmt.Sprintf("%s&SecurityToken=%s",
+            strings.Replace(url.QueryEscape(req.Key.token), "+", "%20", -1),)
+    }
+
+    urlSplit := strings.Split(req.CanonicalUri, "?")
+    fixedUrl = urlSplit[0]
+    sp := strings.Split(urlSplit[1], "&")
+    sortutil.Asc(sp)
+    for i := range sp {
+        if len(canonicalQueryString) > 0 {
+            unEscaped := strings.Replace(sp[i], "+", "%20", -1)
+            canonicalQueryString = fmt.Sprintf("%s&%s", canonicalQueryString, unEscaped)
+        } else {
+            canonicalQueryString = sp[i]
+        }
+    }
+
+    toSign := fmt.Sprintf("%s\n%s\n%s\n%s",
+        req.RequestMethod,
+        req.Host.ToString(),
+        fixedUrl,
+        canonicalQueryString)
+
+    hmacHasher := hmac.New(createHMacHasher256, []byte(req.Key.SecretAccessKey))
+    hmacHasher.Write([]byte(toSign))
+    sig := hmacHasher.Sum(nil)
+
+    req.CanonicalUri = fmt.Sprintf("%s&Signature=%s", req.CanonicalUri,
+        strings.Replace(
+            url.QueryEscape(
+                base64.StdEncoding.EncodeToString(sig),
+            ), "+", "%20", -1))
+    fmt.Println("ToSign: ", toSign)
+    fmt.Println("Request: ", req.CanonicalUri)
 }
 
 
