@@ -58,6 +58,8 @@ type AwsHost struct {
     Region string
     // Eg. amazonaws.com
     Domain string
+    // Overrides the url actuall hit
+    Override string
     // If you want to hit your own custom test service.
     // Generally leave nil to use go's default cert chain.
     CustomCertificates []*x509.Certificate

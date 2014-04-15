@@ -54,6 +54,7 @@ type PutObjectResponse struct {
     RequestId string
     RequestId2 string
     VersionId string
+    StatusCode      int
 }
 type PutObjectResponseFuture struct {
     response chan *PutObjectResponse
@@ -84,6 +85,7 @@ func (por PutObjectRequest) DeMarshalResponse(a []byte, headers map[string]strin
     if v, ok := headers["x-amz-version-id"]; ok {
         response.VersionId = v
     }
+    response.StatusCode = statusCode
     return response
 }
 

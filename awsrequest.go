@@ -136,7 +136,9 @@ func createAwsRequest(rb RequestBuilder, marsh interface{}) (request AwsRequest)
         if request.Headers == nil {
             request.Headers = make(map[string]string)
         }
-        request.Headers["Content-Type"] = "application/x-amz-json-1.0"
+        if _, ok := request.Headers["Content-Type"]; !ok {
+            request.Headers["Content-Type"] = "application/x-amz-json-1.0"
+        }
         request.Headers["Content-Length"] = fmt.Sprintf("%d", len(request.Payload))
     }
     return
@@ -218,6 +220,8 @@ func (req AwsRequest) Do() (io.ReadCloser, map[string]string, int, error) {
         return nil, nil, 0, err
     }
 
+    //fmt.Println("Request url: ", url_.String())
+
     // the base request
     hreq := http.Request {
         URL: url_,
@@ -271,7 +275,9 @@ func addCustomCertsAndCreateClient(req AwsRequest) (http.Client) {
 func getUrl(req AwsRequest) (*url.URL, error) {
     // create the url string. Not all aws request have regions.
     var urlStr string
-    if req.Host.Region == "" {
+    if req.Host.Override != "" {
+        urlStr = fmt.Sprintf("https://%s%s", req.Host.Override, req.CanonicalUri)
+    } else if req.Host.Region == "" {
         urlStr = fmt.Sprintf("https://%s.%s%s", req.Host.Service, req.Host.Domain, req.CanonicalUri)
     } else {
         urlStr = fmt.Sprintf("https://%s.%s.%s%s", req.Host.Service, req.Host.Region, req.Host.Domain, req.CanonicalUri)
