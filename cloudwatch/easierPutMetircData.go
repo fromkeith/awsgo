@@ -101,7 +101,7 @@ func SimpleKeyValueMetric(name string, value float64, unit string, namespace str
         return err
     } else {
         if offThreadSendChannel == nil {
-            return errors.New("No sender has been created! Failing.")
+            createOffThreadSenderIfNotExists()
         }
         offThreadSendChannel <- putMetricRequest
         return nil
