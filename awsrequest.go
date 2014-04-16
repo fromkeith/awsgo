@@ -366,6 +366,7 @@ func  (req * AwsRequest) createV2Signature() {
         )
     if req.Key.token != "" {
         req.CanonicalUri = fmt.Sprintf("%s&SecurityToken=%s",
+            req.CanonicalUri,
             strings.Replace(url.QueryEscape(req.Key.token), "+", "%20", -1),)
     }
 
