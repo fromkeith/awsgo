@@ -352,7 +352,6 @@ func (req * AwsRequest) createCanonicalHeaders(prefixReq string) (canonicalHeade
 func  (req * AwsRequest) createV2Signature() {
 
     canonicalQueryString := ""
-    fixedUrl := req.CanonicalUri
     if !strings.Contains(req.CanonicalUri, "?") {
         req.CanonicalUri = req.CanonicalUri + "?"
     } else {
@@ -371,7 +370,10 @@ func  (req * AwsRequest) createV2Signature() {
     }
 
     urlSplit := strings.Split(req.CanonicalUri, "?")
-    fixedUrl = urlSplit[0]
+    if len(urlSplit) != 2 {
+        panic(fmt.Sprintf("CanonicalUri does not have 2 parts. Got: %s", req.CanonicalUri))
+    }
+    fixedUrl := urlSplit[0]
     sp := strings.Split(urlSplit[1], "&")
     sortutil.Asc(sp)
     for i := range sp {
