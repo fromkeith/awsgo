@@ -33,7 +33,6 @@ package cloudwatch
 import (
     "github.com/fromkeith/awsgo"
     "time"
-    "errors"
     "fmt"
     "sync"
 )
