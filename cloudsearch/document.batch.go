@@ -40,6 +40,7 @@ import (
 
 var (
     Verification_Error_EndpointEmpty = errors.New("Endpoint can not be empty!")
+    NoPermission_For_Endpoint = errors.New("403 Invalid permissions to hit endpoint.")
 )
 
 
@@ -99,13 +100,14 @@ func (gir * BatchDocumentRequest) VerifyInput() (error) {
 }
 
 func (gir BatchDocumentRequest) DeMarshalResponse(response []byte, headers map[string]string, statusCode int) (interface{}) {
-    fmt.Println("Response ", string(response))
+    if statusCode == 403 {
+        return NoPermission_For_Endpoint
+    }
     resp := new(BatchDocumentResponse)
     err := json.Unmarshal(response, resp)
     if err != nil {
         return err
     }
-    resp.StatusCode = statusCode
     return resp
 }
 
