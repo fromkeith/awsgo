@@ -136,8 +136,11 @@ func (gir * SendEmailRequest) VerifyInput() (error) {
 }
 
 func (gir SendEmailRequest) DeMarshalResponse(response []byte, headers map[string]string, statusCode int) (interface{}) {
+    xmlErr := awsgo.CheckForErrorXml(response)
+    if xmlErr != nil {
+        return xmlErr
+    }
     giResponse := new(SendEmailResponse)
-    //fmt.Println(string(response))
     xml.Unmarshal(response, giResponse)
     //json.Unmarshal([]byte(response), giResponse)
     return giResponse
