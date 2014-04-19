@@ -108,6 +108,7 @@ func (gir BatchDocumentRequest) DeMarshalResponse(response []byte, headers map[s
     if err != nil {
         return err
     }
+    resp.StatusCode = statusCode
     return resp
 }
 
