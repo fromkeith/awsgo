@@ -39,8 +39,13 @@ import (
 
 
 
-var offThreadSendChannel chan *PutMetricRequest
-var offThreadChannelLock sync.Mutex
+var (
+    offThreadSendChannel    chan *PutMetricRequest
+    resizeOffThreadChannel  chan int
+    offThreadChannelLock    sync.Mutex
+    numProcsCount           int = 0
+    maxNumProcs             int = -1
+)
 
 
 
@@ -153,6 +158,8 @@ func createOffThreadSendChannelIfNotExists() {
     if offThreadSendChannel == nil {
         // have a bigish buffer so we actaully are not blocking
         offThreadSendChannel = make(chan *PutMetricRequest, 500)
+        resizeOffThreadChannel = make(chan int, 1)
+        maxNumProcs = -1
     }
 }
 
@@ -163,27 +170,59 @@ func createOffThreadSenderIfNotExists() {
 }
 
 /** Creates a worker to send metrics.
- * Must be called at least once before trying to set 'sendOnThisThread' false for helper methods.
+ * return false if we already have the max number of proces
  */
-func CreateOffThreadSender() {
+func CreateOffThreadSender() bool {
     createOffThreadSendChannelIfNotExists()
+    if maxNumProcs >= 0 && numProcsCount >= maxNumProcs {
+        return false
+    }
+    offThreadChannelLock.Lock()
+    numProcsCount ++
+    offThreadChannelLock.Unlock()
     go func () {
         for {
-            putMetricRequest := <- offThreadSendChannel
-            if putMetricRequest == nil {
-                break
-            }
-            putMetricRequest.Key, _ = awsgo.GetSecurityKeys()
-            _, err := putMetricRequest.Request()
-            if err != nil {
-                fmt.Println(err)
+            select {
+                case putMetricRequest := <- offThreadSendChannel:
+                    if putMetricRequest == nil {
+                        return
+                    }
+                    putMetricRequest.Key, _ = awsgo.GetSecurityKeys()
+                    _, err := putMetricRequest.Request()
+                    if err != nil {
+                        fmt.Println(err)
+                    }
+                    break
+                case newCount := <- resizeOffThreadChannel:
+                    offThreadChannelLock.Lock()
+                    numProcsCount --
+                    if newCount < numProcsCount {
+                        resizeOffThreadChannel <- newCount
+                    }
+                    offThreadChannelLock.Unlock()
+                    return
             }
         }
     }()
+    return true
 }
 
 func CloseOffThreadSender() {
     if offThreadSendChannel != nil {
         close(offThreadSendChannel)
     }
+}
+
+func SetMaxOffThreadSenders(amt int) {
+    offThreadChannelLock.Lock()
+    defer offThreadChannelLock.Unlock()
+    maxNumProcs = amt
+    if numProcsCount > maxNumProcs {
+        resizeOffThreadChannel <- maxNumProcs
+    }
+}
+func GetOffThreadSenderCount() int {
+    offThreadChannelLock.Lock()
+    defer offThreadChannelLock.Unlock()
+    return numProcsCount
 }
