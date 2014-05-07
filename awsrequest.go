@@ -228,7 +228,7 @@ func (req AwsRequest) Do() (io.ReadCloser, map[string]string, int, error) {
         Method: req.RequestMethod,
         ProtoMajor: 1,
         ProtoMinor: 1,
-        Close: true, // test what we want this. I seem to remember needing close...
+        //Close: true, // test what we want this. I seem to remember needing close...
         Header: reqHeaders,
     }
 
