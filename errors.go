@@ -38,6 +38,7 @@ import (
 var (
     Verification_Error_AccessKeyEmpty = errors.New("Key.AccessKeyId cannot be empty")
     Verification_Error_SecretAccessKeyEmpty = errors.New("Key.SecretAccessKey cannot be empty")
+    Error_Code_InvalidParameterValue = "InvalidParameterValue"
 )
 
 type Error struct {
