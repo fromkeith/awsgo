@@ -122,10 +122,14 @@ func (pir * UpdateItemRequest) VerifyInput() (error) {
         pir.UpdateKey[k] = awsgo.ConvertToAwsItem(v)
     }
     for k, v := range pir.Update {
-        pir.Update[k] = AttributeUpdates{v.Action, awsgo.ConvertToAwsItem(v.Value)}
+        if v.Action != AttributeUpdate_Action_Delete {
+            pir.Update[k] = AttributeUpdates{v.Action, awsgo.ConvertToAwsItem(v.Value)}
+        }
     }
     for k, v := range pir.Expected {
-        pir.Expected[k] = ExpectedItem{v.Exists, awsgo.ConvertToAwsItem(v.Value)}
+        if v.Exists {
+            pir.Expected[k] = ExpectedItem{v.Exists, awsgo.ConvertToAwsItem(v.Value)}
+        }
     }
     return nil
 }
