@@ -49,6 +49,7 @@ import (
     "strings"
     "time"
     "crypto/tls"
+    "sync"
 )
 
 const (
@@ -57,6 +58,11 @@ const (
     RequestSigningType_AWS2 = 3
 )
 
+
+var (
+    requestClient       *http.Client
+    firstRequestCreate  sync.Mutex
+)
 
 
 
@@ -256,6 +262,14 @@ func (req AwsRequest) Do() (io.ReadCloser, map[string]string, int, error) {
 }
 
 func addCustomCertsAndCreateClient(req AwsRequest) (http.Client) {
+    if requestClient != nil {
+        return *requestClient
+    }
+    firstRequestCreate.Lock()
+    defer firstRequestCreate.Unlock()
+    if requestClient != nil {
+        return *requestClient
+    }
     // add in any custom certs they want us to use
     var rootCA *x509.CertPool
     if len(req.Host.CustomCertificates) > 0 {
@@ -269,7 +283,8 @@ func addCustomCertsAndCreateClient(req AwsRequest) (http.Client) {
             RootCAs : rootCA,
         },
     }
-    return http.Client{Transport: tr}
+    requestClient = &http.Client{Transport: tr}
+    return *requestClient
 }
 
 func getUrl(req AwsRequest) (*url.URL, error) {
