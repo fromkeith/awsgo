@@ -34,6 +34,7 @@ import (
     "github.com/fromkeith/awsgo"
     "errors"
     "encoding/json"
+    "time"
 )
 
 type BatchWriteItemDeleteRequest struct {
@@ -206,4 +207,112 @@ func (gir BatchWriteItemRequest) Request() (*BatchWriteItemResponse, error) {
         return nil, err
     }
     return resp.(*BatchWriteItemResponse), err
+}
+
+// makes the request, and tries to include the unprocessed request items in subsequent requests
+func (gir BatchWriteItemRequest) RequestIncludingUnprocessed() (*BatchWriteItemResponse, error) {
+    resp, err := gir.Request()
+    if err != nil {
+        return resp, err
+    }
+    lastSize := len(resp.UnprocessedItems)
+    for backOff := 0; len(resp.UnprocessedItems) > 0; {
+        if lastSize == len(resp.UnprocessedItems) {
+            backOff ++
+        }
+        lastSize = len(resp.UnprocessedItems)
+        if backOff > 5 {
+            return resp, errors.New("Backoff exceeded. Giving up.")
+        }
+        time.Sleep(time.Duration(backOff * 100))
+
+        retryRequest := NewBatchWriteItemRequest()
+        retryRequest.RequestBuilder = gir.deepCopyRequestBuilder()
+        retryRequest.RequestItems = resp.UnprocessedItems
+        resp, err = retryRequest.Request()
+        if err != nil {
+            return resp, err
+        }
+    }
+    return resp, nil
+}
+
+func (gir BatchWriteItemRequest) deepCopyRequestBuilder() awsgo.RequestBuilder {
+    var theCopy awsgo.RequestBuilder
+    theCopy.Host.Service = gir.Host.Service
+    theCopy.Host.Region = gir.Host.Region
+    theCopy.Host.Domain = gir.Host.Domain
+    theCopy.Host.Override = gir.Host.Override
+    // ignore the cert for now
+    // theCopy.Host.CustomCertificates
+
+    theCopy.Key = gir.Key
+    theCopy.Headers = make(map[string]string)
+    for k, v := range gir.Headers {
+        theCopy.Headers[k] = v
+    }
+    theCopy.RequestMethod = gir.RequestMethod
+    theCopy.CanonicalUri = gir.CanonicalUri
+    return theCopy
+}
+
+// Makes multiple requests, if too many actions were added.
+// Also automatically retries unprocessed items.
+// returns on the first error.
+func (gir BatchWriteItemRequest) RequestSplit() ([]*BatchWriteItemResponse, error) {
+
+    responses := make([]*BatchWriteItemResponse, 0, 10)
+
+    var curSubRequest *BatchWriteItemRequest
+    itemsInSet := 0
+    for table, reqs := range gir.RequestItems {
+        for i := range reqs {
+            if curSubRequest == nil {
+                curSubRequest = NewBatchWriteItemRequest()
+                curSubRequest.RequestBuilder = gir.deepCopyRequestBuilder()
+                curSubRequest.ReturnConsumedCapacity = gir.ReturnConsumedCapacity
+                curSubRequest.ReturnItemCollectionMetrics = gir.ReturnItemCollectionMetrics
+                itemsInSet = 0
+            }
+            if reqs[i].DeleteRequest != nil {
+                curSubRequest.AddDeleteRequest(table, reqs[i].DeleteRequest.Key)
+            } else if reqs[i].PutRequest != nil {
+                curSubRequest.AddPutRequest(table, reqs[i].PutRequest.Item)
+            }
+            itemsInSet ++
+            if itemsInSet >= 25 {
+                resp, err := curSubRequest.RequestIncludingUnprocessed()
+                if err != nil {
+                    return responses, err
+                }
+                if len(responses) == cap(responses) {
+                    newItems := make([]*BatchWriteItemResponse, len(responses) * 2)
+                    for i := range responses {
+                        newItems[i] = responses[i]
+                    }
+                    responses = newItems[:len(responses)]
+                }
+                responses = responses[:len(responses) + 1]
+                responses[len(responses) - 1] = resp
+                itemsInSet = 0
+                curSubRequest = nil
+            }
+        }
+    }
+    if curSubRequest != nil {
+        resp, err := curSubRequest.RequestIncludingUnprocessed()
+        if err != nil {
+            return responses, err
+        }
+        if len(responses) == cap(responses) {
+            newItems := make([]*BatchWriteItemResponse, len(responses) * 2)
+            for i := range responses {
+                newItems[i] = responses[i]
+            }
+            responses = newItems[:len(responses)]
+        }
+        responses = responses[:len(responses) + 1]
+        responses[len(responses) - 1] = resp
+    }
+    return responses, nil
 }
