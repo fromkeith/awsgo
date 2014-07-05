@@ -234,7 +234,7 @@ func (req AwsRequest) Do() (io.ReadCloser, map[string]string, int, error) {
         Method: req.RequestMethod,
         ProtoMajor: 1,
         ProtoMinor: 1,
-        //Close: true, // test what we want this. I seem to remember needing close...
+        Close: true, // until this is fixed (https://code.google.com/p/go/issues/detail?id=4677) we want to Close.
         Header: reqHeaders,
     }
 
