@@ -32,10 +32,15 @@ package cloudsearch
 
 
 import (
-    "github.com/fromkeith/awsgo"
-    "errors"
+    "bytes"
     "encoding/json"
+    "errors"
     "fmt"
+    "io"
+    "io/ioutil"
+    "net/http"
+    "net/url"
+    "strings"
 )
 
 var (
@@ -53,12 +58,11 @@ type DocumentInfo struct {
 
 
 type BatchDocumentRequest struct {
-    awsgo.RequestBuilder
-
     Items           []DocumentInfo
     // if you full endpoint is blah.us-west-2.cloudsearch.amazonaws.com
     // then set this to 'blah'
     Endpoint        string      `json:"-"`
+    Region          string
 }
 
 type BatchDocumentMessage struct {
@@ -78,50 +82,52 @@ type BatchDocumentResponse struct {
 // Creates a new BatchDocumentRequest, populating in some defaults
 func NewBatchDocumentRequest() *BatchDocumentRequest {
     req := new(BatchDocumentRequest)
-    req.Host.Service = "cloudsearch"
-    req.Host.Region = ""
-    req.Host.Domain = "amazonaws.com"
-    req.Key.AccessKeyId = ""
-    req.Key.SecretAccessKey = ""
-    req.Headers = make(map[string]string)
-    req.Headers["Content-Type"] = "application/json"
-    req.RequestMethod = "POST"
-    req.CanonicalUri = "/2013-01-01/documents/batch"
+    req.Region = ""
     return req
 }
 
 
-func (gir * BatchDocumentRequest) VerifyInput() (error) {
-    if len(gir.Endpoint) == 0 {
-        return Verification_Error_EndpointEmpty
-    }
-    gir.Host.Override = fmt.Sprintf("%s.%s.%s.%s", gir.Endpoint, gir.Host.Region, gir.Host.Service, gir.Host.Domain)
-    return nil
-}
-
-func (gir BatchDocumentRequest) DeMarshalResponse(response []byte, headers map[string]string, statusCode int) (interface{}) {
+func (gir BatchDocumentRequest) DeMarshalResponse(response []byte, headers http.Header, statusCode int) (*BatchDocumentResponse, error) {
     if statusCode == 403 {
-        return NoPermission_For_Endpoint
+        return nil, NoPermission_For_Endpoint
     }
     resp := new(BatchDocumentResponse)
     err := json.Unmarshal(response, resp)
     if err != nil {
-        return err
+        return nil, err
     }
     resp.StatusCode = statusCode
-    return resp
+    return resp, err
 }
 
 
 func (gir BatchDocumentRequest) Request() (*BatchDocumentResponse, error) {
-    request, err := awsgo.NewAwsRequest(&gir, gir.Items)
+    urlStr := fmt.Sprintf("https://%s.%s.cloudsearch.amazonaws.com/2013-01-01/documents/batch", gir.Endpoint, gir.Region)
+    u, err := url.Parse(urlStr)
     if err != nil {
         return nil, err
     }
-    request.RequestSigningType = awsgo.RequestSigningType_AWS4
-    resp, err := request.DoAndDemarshall(&gir)
-    if resp == nil {
+    itemJson, err := json.Marshal(gir.Items)
+    if err != nil {
         return nil, err
     }
-    return resp.(*BatchDocumentResponse), err
+    hreq := http.Request{
+        URL: u,
+        ContentLength: int64(len(itemJson)),
+        Body: ioutil.NopCloser(strings.NewReader(string(itemJson))),
+        Header: http.Header{
+            "Content-Type": []string{"application/json"},
+        },
+        Method: "POST",
+        Close: true,
+    }
+    resp, err := http.DefaultClient.Do(&hreq)
+    if err != nil {
+        return nil, err
+    }
+    defer resp.Body.Close()
+    buf := bytes.Buffer{}
+    io.Copy(&buf, resp.Body)
+    return gir.DeMarshalResponse([]byte(buf.String()), resp.Header, resp.StatusCode)
+
 }
