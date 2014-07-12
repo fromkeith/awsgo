@@ -396,7 +396,22 @@ func TestDescribeInstance() {
 }
 
 
+func TestGetMetricStatistics() {
+    getMetric := cloudwatch.NewGetMetricStatisticsRequest()
+    getMetric.MetricName = "CPUUtilization"
+    getMetric.Namespace = "AWS/EC2"
+    getMetric.Statistics = []string{cloudwatch.STATISTIC_Average}
+    getMetric.StartTime = time.Now().Add(-12 * time.Hour)
+    getMetric.EndTime = time.Now()
+    getMetric.Host.Region = "us-west-2"
+    getMetric.Key, _ = awsgo.GetSecurityKeys()
+    resp, err := getMetric.Request()
+    fmt.Println(resp, err)
+}
+
+
 func main() {
+    TestGetMetricStatistics()
 
     //TestGetItem()
     //TestUpdateItem()
