@@ -78,6 +78,15 @@ type BatchDocumentResponse struct {
     StatusCode      int
 }
 
+type BatchResponseError struct {
+    Response        string
+    JsonError       error
+    StatusCode      int
+}
+func (b BatchResponseError) Error() string {
+    return b.Response
+}
+
 
 // Creates a new BatchDocumentRequest, populating in some defaults
 func NewBatchDocumentRequest() *BatchDocumentRequest {
@@ -94,7 +103,11 @@ func (gir BatchDocumentRequest) DeMarshalResponse(response []byte, headers http.
     resp := new(BatchDocumentResponse)
     err := json.Unmarshal(response, resp)
     if err != nil {
-        return nil, err
+        return nil, BatchResponseError{
+            Response: string(response),
+            JsonError: err,
+            StatusCode: statusCode,
+        }
     }
     resp.StatusCode = statusCode
     return resp, err
