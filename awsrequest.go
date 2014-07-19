@@ -35,6 +35,7 @@ import (
     "crypto/hmac"
     "crypto/md5"
     "crypto/sha256"
+    "crypto/tls"
     "crypto/x509"
     "encoding/base64"
     "encoding/json"
@@ -43,13 +44,13 @@ import (
     "github.com/pmylund/sortutil"
     "io"
     "io/ioutil"
+    "net"
     "net/http"
     "net/url"
     "strconv"
     "strings"
-    "time"
-    "crypto/tls"
     "sync"
+    "time"
 )
 
 const (
@@ -243,15 +244,43 @@ func (req AwsRequest) Do() (io.ReadCloser, map[string]string, int, error) {
     if val, ok := req.Headers["Content-Length"]; ok {
         hreq.ContentLength, _ = strconv.ParseInt(val, 10, 64)
     }
-    if req.Payload != "" {
-        //fmt.Println("Payload", req.Payload)
-        hreq.Body = ioutil.NopCloser(bytes.NewBuffer([]byte(req.Payload)))
-    } else if req.PayloadReader != nil {
+    // we can only retry if we can reset Body..
+    canRetry := true
+    if req.PayloadReader != nil {
+        // can't retry here, as we can't reset req.PayloadReader
         hreq.Body = req.PayloadReader
+        canRetry = false
     }
-    resp, err := httpClient.Do(&hreq)
-    if err != nil {
-        return nil, nil, 0, err
+    var resp *http.Response
+    for try := 0; ; try ++ {
+        // for payloads we know are static, we can reset them for each try.
+        if req.Payload != "" {
+            hreq.Body = ioutil.NopCloser(bytes.NewBuffer([]byte(req.Payload)))
+        }
+        resp, err = httpClient.Do(&hreq)
+        if err != nil {
+            if try > 5 {
+                return nil, nil, 0, err
+            }
+            // if a temporary error, and we can retry, then do.
+            if netErr, ok := err.(net.Error); ok && canRetry {
+                if netErr.Temporary() {
+                    time.Sleep(time.Duration(100 * try * try) * time.Millisecond)
+                    continue
+                }
+            }
+            return nil, nil, 0, err
+        }
+        if try > 5 || !canRetry {
+            break
+        }
+        // retry on 500s, if possible
+        if resp.StatusCode == 500 {
+            resp.Body.Close()
+            time.Sleep(time.Duration(100 * try * try) * time.Millisecond)
+            continue
+        }
+        break
     }
 
     responseHeaders := make(map[string]string)
