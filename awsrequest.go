@@ -65,6 +65,16 @@ var (
     firstRequestCreate  sync.Mutex
 )
 
+type RequestError struct {
+    BaseError           error
+    Location            string
+    Action              string
+}
+
+func (r RequestError) Error() string {
+    return fmt.Sprintf("%s: %s: %v", r.Location, r.Action, r.BaseError)
+}
+
 
 
 // Base of a request. Used across all requests.
@@ -80,6 +90,7 @@ type RequestBuilder struct {
     // The uri we are hitting.
     CanonicalUri string             `json:"-"`
 }
+
 
 // Implemented by each AWS request
 // Provides some standard steps to doing a request, and handling its response.
@@ -181,7 +192,16 @@ func (request AwsRequest) DoAndDemarshall(rb RequestBuilderInterface) (interface
     var responseContent []byte
     buf := bytes.Buffer{}
     if _, err = io.Copy(&buf, responseIo); err != nil {
-        return nil, err
+        // i think i'm seeing some connection reset by peer errors here, but i'm not 100% sure
+        // best i could find was the suggestion that the body was closed by the server before
+        // we could read it, and that this might happen on bad request.
+        if statusCode >= 200 && statusCode < 300 {
+            return nil, RequestError{
+                BaseError: err,
+                Location: "Aws.Request.DoAndDemarshall",
+                Action: "io.Copy",
+            }
+        }
     }
     responseContent = []byte(buf.String())
 
@@ -260,7 +280,11 @@ func (req AwsRequest) Do() (io.ReadCloser, map[string]string, int, error) {
         resp, err = httpClient.Do(&hreq)
         if err != nil {
             if try > 5 {
-                return nil, nil, 0, err
+                return nil, nil, 0, RequestError{
+                    BaseError: err,
+                    Location: "Aws.Request.Do (Exceeded tries)",
+                    Action: "httpClient.Do",
+                }
             }
             // if a temporary error, and we can retry, then do.
             if netErr, ok := err.(net.Error); ok && canRetry {
@@ -269,7 +293,11 @@ func (req AwsRequest) Do() (io.ReadCloser, map[string]string, int, error) {
                     continue
                 }
             }
-            return nil, nil, 0, err
+            return nil, nil, 0, RequestError{
+                BaseError: err,
+                Location: "Aws.Request.Do (Non net, non temp)",
+                Action: "httpClient.Do",
+            }
         }
         if try > 5 || !canRetry {
             break
