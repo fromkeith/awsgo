@@ -50,6 +50,7 @@ import (
     "strconv"
     "strings"
     "sync"
+    "syscall"
     "time"
 )
 
@@ -289,6 +290,13 @@ func (req AwsRequest) Do() (io.ReadCloser, map[string]string, int, error) {
             // if a temporary error, and we can retry, then do.
             if netErr, ok := err.(net.Error); ok && canRetry {
                 if netErr.Temporary() {
+                    time.Sleep(time.Duration(100 * try * try) * time.Millisecond)
+                    continue
+                }
+            }
+            // try mimic the fix in https://code.google.com/p/go/issues/detail?id=6163
+            if sysError, ok := err.(syscall.Errno); ok && canRetry {
+                if sysError == syscall.ECONNRESET || sysError == syscall.ECONNABORTED {
                     time.Sleep(time.Duration(100 * try * try) * time.Millisecond)
                     continue
                 }
