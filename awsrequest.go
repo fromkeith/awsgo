@@ -235,8 +235,6 @@ func (req AwsRequest) Do() (io.ReadCloser, map[string]string, int, error) {
         return nil, nil, 0, err
     }
 
-    req.Headers["Connection"] = "Keep-Alive"
-
     // create headers for the actual request
     reqHeaders := http.Header{}
     for k, v := range req.Headers {
@@ -347,6 +345,7 @@ func addCustomCertsAndCreateClient(req AwsRequest) (http.Client) {
         TLSClientConfig: &tls.Config{
             RootCAs : rootCA,
         },
+        DisableKeepAlives: true,
     }
     requestClient = &http.Client{Transport: tr}
     return *requestClient
