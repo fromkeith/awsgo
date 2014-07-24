@@ -409,9 +409,102 @@ func TestGetMetricStatistics() {
     fmt.Println(resp, err)
 }
 
+func TestCreateLogGroup() {
+    createGroup := cloudwatch.NewCreateLogGroupRequest()
+    createGroup.LogGroupName = "test_group"
+    createGroup.Key, _ = awsgo.GetSecurityKeys()
+    _, err := createGroup.Request()
+    if err != nil  {
+        if v, ok := err.(*cloudwatch.ErrorResult); ok {
+            if v.Type != cloudwatch.ResourceAlreadyExistsExceptionType {
+                fmt.Printf("createGroup Error: %v %#v\n", err, err)
+                return
+            }
+        } else {
+            fmt.Printf("createGroup Error: %v %#v\n", err, err)
+            return
+        }
+    }
+    createStream := cloudwatch.NewCreateLogStreamRequest()
+    createStream.LogStreamName = "test_stream"
+    createStream.LogGroupName = "test_group"
+    createStream.Key, _ = awsgo.GetSecurityKeys()
+    if _, err := createStream.Request(); err != nil {
+        if v, ok := err.(*cloudwatch.ErrorResult); ok {
+            if v.Type != cloudwatch.ResourceAlreadyExistsExceptionType {
+                fmt.Printf("createStream Error: %v %#v\n", err, err)
+                return
+            }
+        } else {
+            fmt.Printf("createStream Error: %v %#v\n", err, err)
+            return
+        }
+    }
+    putRetention := cloudwatch.NewPutRetentionPolicyRequest()
+    putRetention.LogGroupName = "test_group"
+    putRetention.RetentionInDays = 1
+    putRetention.Key, _ = awsgo.GetSecurityKeys()
+    if _, err := putRetention.Request(); err != nil {
+        fmt.Printf("putRetention Error: %v %#v\n", err, err)
+        return
+    }
+    nextToken := ""
+    for {
+        log1 := cloudwatch.NewPutLogEventsRequest()
+        log1.AddEvent("Test 1", time.Now())
+        log1.AddEvent("Test 2", time.Now())
+        log1.LogGroupName = "test_group"
+        log1.LogStreamName = "test_stream"
+        log1.SequenceToken = nextToken
+        log1.Key, _ = awsgo.GetSecurityKeys()
+        log1Resp, err := log1.Request()
+        if err != nil {
+            if v, ok := err.(*cloudwatch.ErrorResult); ok {
+                if v.Type != cloudwatch.InvalidSequenceTokenExceptionType && v.Type != cloudwatch.DataAlreadyAcceptedExceptionType {
+                    fmt.Printf("createStream Error: %v %#v\n", err, err)
+                    return
+                }
+                nextToken = cloudwatch.ExtractNextTokenFromError(v)
+                fmt.Println("Extracted: ", nextToken)
+            } else {
+                fmt.Printf("createStream Error: %v %#v\n", err, err)
+                return
+            }
+        } else {
+            nextToken = log1Resp.NextSequenceToken
+            break
+        }
+    }
+    log2 := cloudwatch.NewPutLogEventsRequest()
+    log2.SequenceToken = nextToken
+    log2.AddEvent("Test 3", time.Now())
+    log2.AddEvent("Test 4", time.Now())
+    log2.LogGroupName = "test_group"
+    log2.LogStreamName = "test_stream"
+    log2.Key, _ = awsgo.GetSecurityKeys()
+    log2Resp, err := log2.Request()
+    if err != nil {
+        fmt.Printf("log2 Error: %v %#v\n", err, err)
+        return
+    }
+    fmt.Println("Next Token: ", log2Resp.NextSequenceToken)
+}
+
+func TestGetLogEvents() {
+    get := cloudwatch.NewGetLogEventsRequest()
+    get.LogGroupName = "test_group"
+    get.LogStreamName = "test_stream"
+    get.SetLimit(100)
+    get.SetTimeRange(time.Now().Add(-24 * time.Minute), time.Now())
+    get.Key, _ = awsgo.GetSecurityKeys()
+    resp, err := get.Request()
+    fmt.Println(resp, err)
+}
 
 func main() {
-    TestGetMetricStatistics()
+    //TestGetMetricStatistics()
+    //TestCreateLogGroup()
+    TestGetLogEvents()
 
     //TestGetItem()
     //TestUpdateItem()

@@ -12,6 +12,13 @@ Supported operations for each service:
 
 ### Cloud Watch
 * Put Metric
+* Get Metric Statistics
+* Logs:
+    * Create Log Group
+    * Create Log Stream
+    * Get Log Events
+    * Put Log Events
+    * Put Rentention Policy
 
 ### DynamoDB
 > Caveat: Binary values are not yet supported.
@@ -19,25 +26,35 @@ Supported operations for each service:
 Godoc: http://godoc.org/github.com/fromkeith/awsgo/dynamo
 
 * Batch Get Item
+* Batch Write Item
+* Delete Item
 * Get Item
 * Put Item
-* Update Item
-* Batch Write Item
 * Query
 * Scan
-* Delete Item
+* Update Item
 
 ### S3
-* Put Item
+* Put Object
+* Get Object
 
 ### SES
 * Send Email
+* Some helpers for dealing with the SNS notifications
 
 ### SQS
+* Change Message Visibility
 * Delete Message
 * Receive Message
 * Send Message
 
+### Cloud Search
+* Document Batch Write
+
+
+### EC2
+* Describe Instances
+* Get Instance Metadata
 
 ## Depends on
     github.com/pmylund/sortutil
