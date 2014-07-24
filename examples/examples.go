@@ -501,10 +501,33 @@ func TestGetLogEvents() {
     fmt.Println(resp, err)
 }
 
+func DescribeLogStuff() {
+    group := cloudwatch.NewDescribeLogGroupsRequest()
+    group.Key, _ = awsgo.GetSecurityKeys()
+    groupResp, err := group.Request()
+    if err != nil {
+        fmt.Printf("describeLogGroups Error: %v %#v\n", err, err)
+        return
+    }
+    fmt.Printf("LogGroups : %#v\n", groupResp)
+    for i := range groupResp.LogGroups {
+        stream := cloudwatch.NewDescribeLogStreamsRequest()
+        stream.LogGroupName = groupResp.LogGroups[i].LogGroupName
+        stream.Key, _ = awsgo.GetSecurityKeys()
+        streamResp, err := stream.Request()
+        if err != nil {
+            fmt.Printf("describeLogStreams Error: %v %#v\n", err, err)
+            return
+        }
+        fmt.Printf("LogStreams : %#v\n", streamResp)
+    }
+}
+
 func main() {
     //TestGetMetricStatistics()
     //TestCreateLogGroup()
-    TestGetLogEvents()
+    //TestGetLogEvents()
+    DescribeLogStuff()
 
     //TestGetItem()
     //TestUpdateItem()
