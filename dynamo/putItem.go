@@ -85,7 +85,7 @@ func NewPutItemRequest() *PutItemRequest {
 
     req.Host.Service = "dynamodb"
     req.Host.Region = ""
-    req.Host.Domain = ""
+    req.Host.Domain = "amazonaws.com"
     req.Key.AccessKeyId = ""
     req.Key.SecretAccessKey = ""
     return req
