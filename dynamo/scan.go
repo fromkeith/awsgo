@@ -86,6 +86,7 @@ func NewScanRequest() *ScanRequest {
     req.RequestMethod = "POST"
     req.CanonicalUri = "/"
     req.Host.Service = "dynamodb"
+    req.Host.Domain = "amazonaws.com"
     return req
 }
 
