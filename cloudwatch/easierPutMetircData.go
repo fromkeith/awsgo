@@ -113,6 +113,10 @@ func SimpleKeyValueMetric(name string, value float64, unit string, namespace str
 }
 
 func MultiKeyValueMetrics(name []string, value []float64, unit []string, namespace string, sendOnThisThread bool) error {
+    return MultiKeyValueDimensionMetrics(name, value, unit, namespace, nil, sendOnThisThread)
+}
+func MultiKeyValueDimensionMetrics(name []string, value []float64, unit []string, namespace string, dimensions [][]MetricDimensions, sendOnThisThread bool) error {
+
     putMetricRequest := NewPutMetricRequest()
     putMetricRequest.Namespace = namespace
 
@@ -132,6 +136,9 @@ func MultiKeyValueMetrics(name []string, value []float64, unit []string, namespa
         *(putMetricRequest.MetricData[i].Value) = value[i]
         putMetricRequest.MetricData[i].Timestamp = new(time.Time)
         *(putMetricRequest.MetricData[i].Timestamp) = time.Now()
+        if len(dimensions) > i {
+            putMetricRequest.MetricData[i].Dimensions = dimensions[i]
+        }
     }
 
     putMetricRequest.Host.Region = "us-west-2"

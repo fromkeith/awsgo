@@ -119,44 +119,62 @@ func NewPutMetricRequest() *PutMetricRequest {
 }
 
 
-func addMetricDatumToUri(uri string, datum MetricDatum, index int) (string, error) {
+func addMetricDatumToUri(vals url.Values, datum MetricDatum, index int) (error) {
     if len(datum.MetricName) == 0 {
-        return "", errors.New("MetricDatum items must specify a name!")
+        return errors.New("MetricDatum items must specify a name!")
     }
-    uri = fmt.Sprintf("%s&MetricData.member.%d.MetricName=%s",
-        uri, index, url.QueryEscape(datum.MetricName))
+
+    vals.Set(fmt.Sprintf("MetricData.member.%d.MetricName", index), datum.MetricName)
+
     if len(datum.Dimensions) > 0 {
         for i := range(datum.Dimensions) {
-            uri = fmt.Sprintf("%s&MetricData.member.%d.Dimensions.member.%d.Name=%s" +
-                "&MetricData.member.%d.Dimensions.member.%d.Value=%s",
-                uri, index, i + 1, url.QueryEscape(datum.Dimensions[i].Name),
-                index, i + 1, url.QueryEscape(datum.Dimensions[i].Value))
+            vals.Set(
+                fmt.Sprintf("MetricData.member.%d.Dimensions.member.%d.Name", index, i + 1),
+                datum.Dimensions[i].Name,
+            )
+            vals.Set(
+                fmt.Sprintf("MetricData.member.%d.Dimensions.member.%d.Value", index, i + 1),
+                datum.Dimensions[i].Value,
+            )
         }
     }
     if datum.StatisticValues != nil {
-        uri = fmt.Sprintf("%s&MetricData.member.%d.StatisticValues.Maximum=%f" +
-            "&MetricData.member.%d.StatisticValues.Minimum=%f" + 
-            "&MetricData.member.%d.StatisticValues.SampleCount=%f" +
-            "&MetricData.member.%d.StatisticValues.Sum=%f",
-            uri,
-            index, datum.StatisticValues.Maximum,
-            index, datum.StatisticValues.Minimum,
-            index, datum.StatisticValues.SampleCount,
-            index, datum.StatisticValues.Sum)
+        vals.Set(
+            fmt.Sprintf("MetricData.member.%d.StatisticValues.Maximum", index),
+            fmt.Sprintf("%f", datum.StatisticValues.Maximum),
+        )
+        vals.Set(
+            fmt.Sprintf("MetricData.member.%d.StatisticValues.Minimum", index),
+            fmt.Sprintf("%f", datum.StatisticValues.Minimum),
+        )
+        vals.Set(
+            fmt.Sprintf("MetricData.member.%d.StatisticValues.SampleCount", index),
+            fmt.Sprintf("%f", datum.StatisticValues.SampleCount),
+        )
+        vals.Set(
+            fmt.Sprintf("MetricData.member.%d.StatisticValues.Sum", index),
+            fmt.Sprintf("%f", datum.StatisticValues.Sum),
+        )
     }
     if datum.Timestamp != nil {
-        uri = fmt.Sprintf("%s&MetricData.member.%d.Timestamp=%s",
-            uri, index, url.QueryEscape(awsgo.IsoDate(*datum.Timestamp)))
+        vals.Set(
+            fmt.Sprintf("MetricData.member.%d.Timestamp", index),
+            awsgo.IsoDate(*datum.Timestamp),
+        )
     }
     if len(datum.Unit) > 0 {
-        uri = fmt.Sprintf("%s&MetricData.member.%d.Unit=%s",
-            uri, index, url.QueryEscape(datum.Unit))
+        vals.Set(
+            fmt.Sprintf("MetricData.member.%d.Unit", index),
+            datum.Unit,
+        )
     }
     if datum.Value != nil {
-        uri = fmt.Sprintf("%s&MetricData.member.%d.Value=%f",
-            uri, index, *datum.Value)
+        vals.Set(
+            fmt.Sprintf("MetricData.member.%d.Value", index),
+            fmt.Sprintf("%f", *datum.Value),
+        )
     }
-    return uri, nil
+    return nil
 }
 
 
@@ -166,10 +184,13 @@ func (gir * PutMetricRequest) VerifyInput() (error) {
         gir.Host.Region = "us-east-1"
     }
 
-    gir.CanonicalUri = "/?Action=PutMetricData&Version=2010-08-01"
+    vals := url.Values{}
+    vals.Set("Action", "PutMetricData")
+    vals.Set("Version", "2010-08-01")
+
     for i := range(gir.MetricData) {
         var err error
-        gir.CanonicalUri, err = addMetricDatumToUri(gir.CanonicalUri, gir.MetricData[i], i + 1)
+        err = addMetricDatumToUri(vals, gir.MetricData[i], i + 1)
         if err != nil {
             return err
         }
@@ -177,14 +198,21 @@ func (gir * PutMetricRequest) VerifyInput() (error) {
     if len(gir.Namespace) == 0 {
         return errors.New("Namespace cannot be empty!")
     }
-    gir.CanonicalUri = fmt.Sprintf("%s&Namespace=%s", gir.CanonicalUri, url.QueryEscape(gir.Namespace))
+
+    vals.Set("Namespace", gir.Namespace)
+    gir.CanonicalUri = "/?" + vals.Encode()
+    //fmt.Println("PutMetric.Url: ", gir.CanonicalUri)
 
     return nil
 }
 
 func (gir PutMetricRequest) DeMarshalResponse(response []byte, headers map[string]string, statusCode int) (interface{}) {
     giResponse := new(PutMetricResponse)
-    //fmt.Println(string(response))
+    //fmt.Println("PutMetric: ", string(response))
+    //fmt.Println("PutMetric.StatusCode: ", statusCode)
+    if statusCode != 200 {
+        return errors.New(fmt.Sprintf("Bad status code: %d", statusCode))
+    }
     xml.Unmarshal(response, giResponse)
     //json.Unmarshal([]byte(response), giResponse)
     return giResponse
