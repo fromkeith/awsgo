@@ -132,6 +132,7 @@ func NewBatchWriteItemRequest() * BatchWriteItemRequest {
     req.Headers["X-Amz-Target"] = BatchWriteItemTarget
     req.RequestMethod = "POST"
     req.CanonicalUri = "/"
+    req.Host.Domain = "amazonaws.com"
     return req
 }
 

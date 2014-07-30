@@ -88,7 +88,7 @@ func NewGetItemRequest() *GetItemRequest {
     req.ReturnConsumedCapacity = ConsumedCapacity_NONE
     req.Host.Service = "dynamodb"
     req.Host.Region = ""
-    req.Host.Domain = ""
+    req.Host.Domain = "amazonaws.com"
     req.Key.AccessKeyId = ""
     req.Key.SecretAccessKey = ""
     req.Headers = make(map[string]string)

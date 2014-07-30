@@ -87,6 +87,7 @@ func NewQueryRequest() *QueryRequest {
     req.Headers["X-Amz-Target"] = QueryTarget
     req.RequestMethod = "POST"
     req.CanonicalUri = "/"
+    req.Host.Domain = "amazonaws.com"
     return req
 }
 
