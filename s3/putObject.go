@@ -65,6 +65,7 @@ func NewPutObjectRequest() (*PutObjectRequest) {
     req := new(PutObjectRequest)
     req.Headers = make(map[string]string)
     req.RequestMethod = "PUT"
+    req.Host.Domain = "amazonaws.com"
     return req
 }
 
