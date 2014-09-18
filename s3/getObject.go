@@ -67,6 +67,7 @@ func NewGetObjectRequest() (*GetObjectRequest) {
     req := new(GetObjectRequest)
     req.Headers = make(map[string]string)
     req.RequestMethod = "GET"
+    req.Host.Domain = "amazonaws.com"
     return req
 }
 
