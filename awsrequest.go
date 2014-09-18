@@ -440,13 +440,14 @@ func  (req * AwsRequest) createV2Signature() {
 
     req.CanonicalUri = fmt.Sprintf("%sAWSAccessKeyId=%s&SignatureMethod=HmacSHA256&SignatureVersion=2&Timestamp=%s",
         req.CanonicalUri,
-        strings.Replace(url.QueryEscape(req.Key.AccessKeyId), "+", "%20", -1),
-        strings.Replace(url.QueryEscape(now.Format(time.RFC3339)), "+", "%20", -1),
-        )
+        Escape(req.Key.AccessKeyId),
+        Escape(now.Format(time.RFC3339)),
+    )
     if req.Key.token != "" {
         req.CanonicalUri = fmt.Sprintf("%s&SecurityToken=%s",
             req.CanonicalUri,
-            strings.Replace(url.QueryEscape(req.Key.token), "+", "%20", -1),)
+            Escape(req.Key.token),
+        )
     }
 
     urlSplit := strings.Split(req.CanonicalUri, "?")
@@ -475,11 +476,10 @@ func  (req * AwsRequest) createV2Signature() {
     hmacHasher.Write([]byte(toSign))
     sig := hmacHasher.Sum(nil)
 
-    req.CanonicalUri = fmt.Sprintf("%s&Signature=%s", req.CanonicalUri,
-        strings.Replace(
-            url.QueryEscape(
-                base64.StdEncoding.EncodeToString(sig),
-            ), "+", "%20", -1))
+    req.CanonicalUri = fmt.Sprintf("%s&Signature=%s",
+        req.CanonicalUri,
+        Escape(base64.StdEncoding.EncodeToString(sig)),
+    )
 }
 
 

@@ -38,6 +38,8 @@ import (
     "fmt"
     "hash"
     "io/ioutil"
+    "net/url"
+    "strings"
     "time"
 )
 
@@ -99,4 +101,8 @@ func createHMacHasher1() hash.Hash {
 
 func BuildEmptyContentRequest(rb RequestBuilderInterface) (request AwsRequest, verifyError error) {
     return NewAwsRequest(rb, ioutil.NopCloser(bytes.NewBuffer([]byte(""))))
+}
+
+func Escape(it string) string {
+    return strings.Replace(url.QueryEscape(it), "+", "%20", -1)
 }
