@@ -88,9 +88,17 @@ func ConvertToAwsItem(unknown interface{}) interface{} {
             return newNumberItem(j)
         case int:
             return newNumberItem(float64(j))
+        case uint:
+            return newNumberItem(float64(j))
         case float32:
             return newNumberItem(float64(j))
         case int64:
+            return newNumberItem(float64(j))
+        case uint64:
+            return newNumberItem(float64(j))
+        case int32:
+            return newNumberItem(float64(j))
+        case uint32:
             return newNumberItem(float64(j))
         case []string:
             return awsStringItem{"", j}
@@ -101,7 +109,35 @@ func ConvertToAwsItem(unknown interface{}) interface{} {
                 vals64[i] = float64(j[i])
             }
             return newNumberItem(vals64...)
+        case []uint:
+            // we need to cast these over
+            vals64 := make([]float64, len(j))
+            for i := range j {
+                vals64[i] = float64(j[i])
+            }
+            return newNumberItem(vals64...)
         case []int64:
+            // we need to cast these over
+            vals64 := make([]float64, len(j))
+            for i := range j {
+                vals64[i] = float64(j[i])
+            }
+            return newNumberItem(vals64...)
+        case []uint64:
+            // we need to cast these over
+            vals64 := make([]float64, len(j))
+            for i := range j {
+                vals64[i] = float64(j[i])
+            }
+            return newNumberItem(vals64...)
+        case []int32:
+            // we need to cast these over
+            vals64 := make([]float64, len(j))
+            for i := range j {
+                vals64[i] = float64(j[i])
+            }
+            return newNumberItem(vals64...)
+        case []uint32:
             // we need to cast these over
             vals64 := make([]float64, len(j))
             for i := range j {
