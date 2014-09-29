@@ -107,7 +107,8 @@ func (req PutLogEventsRequest) DeMarshalResponse(response []byte, headers map[st
     return resp
 }
 
-
+// events and entire content cannot be above 32,768 bytes. If you are unsure of your
+// content size, use RequestSplit. It will use multiple requests to send your logs.
 func (req PutLogEventsRequest) Request() (*PutLogEventsResponse, error) {
     request, err := awsgo.NewAwsRequest(&req, req)
     if err != nil {
@@ -119,4 +120,37 @@ func (req PutLogEventsRequest) Request() (*PutLogEventsResponse, error) {
         return nil, err
     }
     return resp.(*PutLogEventsResponse), err
+}
+
+
+func (req PutLogEventsRequest) RequestSplit() (*PutLogEventsResponse, error) {
+    var err error
+    var resp *PutLogEventsResponse
+    start := 0
+    calcSize := 0
+    for i := range req.LogEvents{
+        newSize := calcSize + len(req.LogEvents[i].Message) + 60 // 60 is an over approx json surrounding the message + timestamp
+        if newSize >= 30000 || i - start == 1000 {
+            resp, err = split(req, start, i)
+            if err != nil {
+                return nil, err
+            }
+            time.Sleep(100 * time.Millisecond)
+            req.SequenceToken = resp.NextSequenceToken
+            calcSize = newSize - calcSize
+            start = i
+        }
+        calcSize = newSize
+    }
+    return split(req, start, len(req.LogEvents))
+}
+
+func split(req PutLogEventsRequest, start, end int) (*PutLogEventsResponse, error) {
+    newReq := NewPutLogEventsRequest()
+    newReq.LogEvents = req.LogEvents[start:end]
+    newReq.LogGroupName = req.LogGroupName
+    newReq.LogStreamName = req.LogStreamName
+    newReq.SequenceToken = req.SequenceToken
+    newReq.Key = req.Key
+    return newReq.Request()
 }
