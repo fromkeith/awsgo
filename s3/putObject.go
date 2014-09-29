@@ -47,6 +47,7 @@ type PutObjectRequest struct {
     ContentType string
     Permissions string
     Path string
+    ServerSideEncryption        bool
 }
 
 type PutObjectResponse struct {
@@ -64,14 +65,29 @@ type PutObjectResponseFuture struct {
 func NewPutObjectRequest() (*PutObjectRequest) {
     req := new(PutObjectRequest)
     req.Headers = make(map[string]string)
+    req.ServerSideEncryption = false
     req.RequestMethod = "PUT"
     req.Host.Domain = "amazonaws.com"
     return req
 }
 
+type BadStatusCodeError struct {
+    StatusCode              int
+    Content                 string
+}
+func (b BadStatusCodeError) Error() string {
+    return fmt.Sprintf("Code: %d", b.StatusCode)
+}
+
 func (por PutObjectRequest) DeMarshalResponse(a []byte, headers map[string]string, statusCode int) (interface{}) {
     if headers == nil {
         return nil
+    }
+    if statusCode < 200 || statusCode >= 300 {
+        return BadStatusCodeError{
+            StatusCode: statusCode,
+            Content: string(a),
+        }
     }
     response := new(PutObjectResponse)
     if v, ok := headers["etag"]; ok {
@@ -108,6 +124,9 @@ func (por * PutObjectRequest) VerifyInput() (error) {
     por.Headers["x-amz-acl"] = por.Permissions
     por.Headers["Content-Length"] = fmt.Sprintf("%d", por.Length)
     por.Headers["Expect"] = "100-continue"
+    if por.ServerSideEncryption {
+        por.Headers["x-amz-server-side-encryption"] = "AES256"
+    }
     por.CanonicalUri = fmt.Sprintf("/%s", por.Path)
     return nil
 }
