@@ -101,6 +101,9 @@ func (gir * QueryRequest) VerifyInput() (error) {
             condition.AttributeValueList[i] = awsgo.ConvertToAwsItem(condition.AttributeValueList[i])
         }
     }
+    for k, v := range(gir.ExclusiveStartKey) {
+        gir.ExclusiveStartKey[k] = awsgo.ConvertToAwsItem(v)
+    }
     return nil
 }
 
@@ -138,3 +141,26 @@ func (gir QueryRequest) Request() (*QueryResponse, error) {
     return resp.(*QueryResponse), err
 }
 
+// evalutes the query again, setting the LastEvaluatedKey
+func (q * QueryResponse) Next(lastRequest *QueryRequest) (*QueryResponse, error) {
+    if len(q.LastEvaluatedKey) == 0 {
+        return nil, nil
+    }
+    req := NewQueryRequest()
+    // copy the last requests stuff
+    req.AttributesToGet = lastRequest.AttributesToGet
+    req.ConsistentRead = lastRequest.ConsistentRead
+    req.IndexName = lastRequest.IndexName
+    req.KeyConditions = lastRequest.KeyConditions
+    req.ReturnConsumedCapacity = lastRequest.ReturnConsumedCapacity
+    req.ScanIndexForward = lastRequest.ScanIndexForward
+    req.Select = lastRequest.Select
+    req.TableName = lastRequest.TableName
+    req.Limit = lastRequest.Limit
+    // std attributes
+    req.Host.Region = lastRequest.Host.Region
+    req.Key = lastRequest.Key
+    // set our exclusive key
+    req.ExclusiveStartKey = q.LastEvaluatedKey
+    return req.Request()
+}

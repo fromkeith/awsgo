@@ -140,3 +140,26 @@ func (gir ScanRequest) Request() (*ScanResponse, error) {
     return resp.(*ScanResponse), err
 }
 
+
+// evalutes the query again, setting the LastEvaluatedKey
+func (q * ScanResponse) Next(lastRequest *ScanRequest) (*ScanResponse, error) {
+    if len(q.LastEvaluatedKey) == 0 {
+        return nil, nil
+    }
+    req := NewScanRequest()
+    // copy the last requests stuff
+    req.AttributesToGet = lastRequest.AttributesToGet
+    req.Limit = lastRequest.Limit
+    req.ReturnConsumedCapacity = lastRequest.ReturnConsumedCapacity
+    req.ScanFilter = lastRequest.ScanFilter
+    req.Segment = lastRequest.Segment
+    req.Select = lastRequest.Select
+    req.TableName = lastRequest.TableName
+    req.TotalSegments = lastRequest.TotalSegments
+    // std attributes
+    req.Host.Region = lastRequest.Host.Region
+    req.Key = lastRequest.Key
+    // set our exclusive key
+    req.ExclusiveStartKey = q.LastEvaluatedKey
+    return req.Request()
+}
