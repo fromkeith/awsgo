@@ -52,6 +52,10 @@ type Credentials struct {
     expiration time.Time
 }
 
+func (c Credentials) GetToken() string {
+    return c.token
+}
+
 var cachedCredentials Credentials
 var credentialLock sync.Mutex
 

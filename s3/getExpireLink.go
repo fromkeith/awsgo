@@ -58,6 +58,9 @@ func GenerateExpirableLink(bucket, path string, expires time.Time, creds awsgo.C
     v.Add("AWSAccessKeyId", creds.AccessKeyId)
     v.Add("Expires", fmt.Sprintf("%d", expires.Unix()))
     v.Add("Signature", signature)
+    if creds.GetToken() != "" {
+        v.Add("x-amz-security-token", creds.GetToken())
+    }
 
     return fmt.Sprintf(
         "//s3.amazonaws.com/%s/%s?%s",
