@@ -43,10 +43,16 @@ import (
 // Generates an expirable link to an s3 object
 // Generated link will be: "//s3.amazonaws.com/{bucket}/{path}?{queryargs}"
 func GenerateExpirableLink(bucket, path string, expires time.Time, creds awsgo.Credentials) string {
+    var header string
+
+    if creds.GetToken() != "" {
+        header = fmt.Sprintf("x-amz-security-token:%s\n", creds.GetToken())
+    }
 
     toSign := fmt.Sprintf(
-        "GET\n\n\n%d\n/%s/%s",
+        "GET\n\n\n%d\n%s/%s/%s",
         expires.Unix(),
+        header,
         bucket,
         path,
     )
