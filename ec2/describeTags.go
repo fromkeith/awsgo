@@ -62,10 +62,10 @@ type DescribeTagsRequest struct {
 
 
 type TagSetItem struct {
-    ResourceId          string
-    ResourceType        string
-    Key                 string
-    Value               string
+    ResourceId          string                  `xml:"resourceId"`
+    ResourceType        string                  `xml:"resourceType"`
+    Key                 string                  `xml:"key"`
+    Value               string                  `xml:"value"`
 }
 
 type DescribeTagsResponse struct {
