@@ -83,6 +83,32 @@ func TestUnmarshalStringStruct(t *testing.T) {
     }
 }
 
+func TestUnmarshalStringStructMissingOneItem(t *testing.T) {
+    b := BasicString{
+        Bob: "Is cool",
+        Jim: "",
+    }
+    res := Marshal(b)
+    if res == nil {
+        t.Log("Result is nil!")
+        t.Fail()
+    }
+    outB := BasicString{}
+    err := Unmarshal(resToJsonAndBack(res), &outB)
+    if err != nil {
+        t.Logf("Error unmarshalling: %v", err)
+        t.Fail()
+    }
+    if outB.Bob != b.Bob {
+        t.Logf("Expected Bob to be '%s' got '%s'", b.Bob, outB.Bob)
+        t.Fail()
+    }
+    if outB.Jim != b.Jim {
+        t.Logf("Expected Jim to be '%s' got '%s'", b.Jim, outB.Jim)
+        t.Fail()
+    }
+}
+
 type BasicStringRenamed struct {
     Bob             string      `dynamo:"Sherry"`
     Jim             string
@@ -277,6 +303,13 @@ type BasicInt struct {
     Erica           int8
 }
 
+type BasicIntMissingDemi struct {
+    Amanda          int
+    Barbara         int16
+    Carol           int32
+    Erica           int8
+}
+
 func TestMarshalIntStruct(t *testing.T) {
     b := BasicInt{
         Amanda: 5,
@@ -355,6 +388,41 @@ func TestUnmarshalIntStruct(t *testing.T) {
     }
     if b.Demi != out.Demi {
         t.Logf("Demi does not match")
+        t.Fail()
+    }
+    if b.Erica != out.Erica {
+        t.Logf("Erica does not match")
+        t.Fail()
+    }
+}
+
+func TestUnmarshalIntStructMissingItem(t *testing.T) {
+    b := BasicIntMissingDemi{
+        Amanda: 5,
+        Barbara: 6,
+        Carol: 7,
+        Erica: 9,
+    }
+    res := Marshal(b)
+    if res == nil {
+        t.Log("Result is nil!")
+        t.Fail()
+    }
+    out := BasicInt{}
+    if err := Unmarshal(resToJsonAndBack(res), &out); err != nil {
+        t.Logf("Failed to umarshal: %v", err)
+        t.Fail()
+    }
+    if b.Amanda != out.Amanda {
+        t.Logf("Amanda does not match")
+        t.Fail()
+    }
+    if b.Barbara != out.Barbara {
+        t.Logf("Barbara does not match")
+        t.Fail()
+    }
+    if b.Carol != out.Carol {
+        t.Logf("Carol does not match")
         t.Fail()
     }
     if b.Erica != out.Erica {
