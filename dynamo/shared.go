@@ -37,6 +37,7 @@ import (
     "reflect"
     "github.com/fromkeith/awsgo"
     "errors"
+    "time"
 )
 
 // Variable Constants
@@ -258,6 +259,14 @@ func Unmarshal(in map[string]map[string]interface{}, out interface{}) error {
             if !ok {
                 break
             }
+            if _, ok := reflectVal.FieldByIndex(f.Index).Interface().(time.Time); ok {
+                asTime, err := time.Parse("2006-01-02 15:04:05.999999999 -0700 MST", hasItem["S"].(string))
+                if err != nil {
+                    return err
+                }
+                reflectVal.FieldByIndex(f.Index).Set(reflect.ValueOf(asTime))
+                break
+            }
             if asStr, ok := hasItem["S"].(string); ok {
                 as := reflect.New(f.Type)
                 err := json.Unmarshal([]byte(asStr), as.Interface())
@@ -406,6 +415,12 @@ func Marshal(v interface{}) map[string]interface{} {
             result[name] = val
             break
         default:
+            if asTime, ok := reflectVal.FieldByIndex(f.Index).Interface().(time.Time); ok {
+                result[name] = awsgo.AwsStringItem{
+                    Value: asTime.String(),
+                }
+                break
+            }
             val, _ := json.Marshal(reflectVal.FieldByIndex(f.Index).Interface())
             result[name] = awsgo.AwsStringItem{
                 Value: string(val),

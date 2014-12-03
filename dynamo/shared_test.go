@@ -5,14 +5,9 @@ import (
     "github.com/fromkeith/awsgo"
     "encoding/json"
     "log"
+    "time"
 )
 
-
-
-type BasicString struct {
-    Bob             string
-    Jim             string
-}
 
 // simulates it as dynamo json, and our decoding of it
 func resToJsonAndBack(in map[string]interface{}) (out map[string]map[string]interface{}) {
@@ -27,6 +22,14 @@ func resToJsonAndBack(in map[string]interface{}) (out map[string]map[string]inte
     }
     return
 }
+
+
+
+type BasicString struct {
+    Bob             string
+    Jim             string
+}
+
 
 func TestMarshalStringStruct(t *testing.T) {
     b := BasicString{
@@ -740,3 +743,34 @@ func TestUnmarshalMutliLevelStruct(t *testing.T) {
         }
     }
 }
+
+
+
+type DateContainer struct {
+    At          time.Time
+}
+
+
+
+func TestUnmarshalDateContainerStruct(t *testing.T) {
+    now := time.Now()
+    b := DateContainer{
+        At: now,
+    }
+    res := Marshal(b)
+    if res == nil {
+        t.Log("Result is nil!")
+        t.Fail()
+    }
+    outB := DateContainer{}
+    err := Unmarshal(resToJsonAndBack(res), &outB)
+    if err != nil {
+        t.Logf("Error unmarshalling: %v", err)
+        t.Fail()
+    }
+    if !outB.At.Equal(b.At) {
+        t.Logf("Expected At to be '%s' got '%s'", b.At.String(), outB.At.String())
+        t.Fail()
+    }
+}
+
