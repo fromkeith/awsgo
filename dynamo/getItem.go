@@ -48,7 +48,7 @@ type GetItemRequest struct {
     awsgo.RequestBuilder
 
     AttributesToGet        []string  `json:",omitempty"`
-    ConsistentRead         bool     `json:",string"`
+    ConsistentRead         bool
     // The key to search for
     Search                 map[string]interface{}  `json:"Key"`
     TableName              string

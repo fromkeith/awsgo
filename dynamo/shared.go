@@ -33,6 +33,10 @@ package dynamo
 import (
     "encoding/json"
     "fmt"
+    "strconv"
+    "reflect"
+    "github.com/fromkeith/awsgo"
+    "errors"
 )
 
 // Variable Constants
@@ -80,6 +84,8 @@ const (
     QueryTarget = "DynamoDB_20120810.Query"
     DeleteItemTarget = "DynamoDB_20120810.DeleteItem"
     ScanTarget = "DynamoDB_20120810.Scan"
+    DescribeTableTarget = "DynamoDB_20120810.DescribeTable"
+    UpdateTableTarget = "DynamoDB_20120810.UpdateTable"
 )
 // Known Errors
 const (
@@ -88,6 +94,7 @@ const (
     ValidationException = "com.amazon.coral.validate#ValidationException"
     UnknownServerError = "UnknownServerError"
     AccessDeniedException = "com.amazon.coral.service#AccessDeniedException"
+    ThroughputException = "com.amazonaws.dynamodb.v20120810#ProvisionedThroughputExceededException"
 )
 
 type CapacityUnitsStruct struct {
@@ -145,3 +152,310 @@ func CheckForErrorResponse(response []byte, statusCode int) error {
     }
     return nil
 }
+
+// returns the value in the map if it exists, otherise 'elze' value is returned
+func AsStringOr(item map[string]interface{}, key, elze string) string {
+    if v, ok := item[key].(string); ok {
+        return v
+    }
+    return elze
+}
+
+// returns the value in the map if it exists, otherise 'elze' value is returned
+func AsFloatOr(item map[string]interface{}, key string, elze float64) float64 {
+    if v, ok := item[key].(float64); ok {
+        return v
+    }
+    return elze
+}
+
+// parses the value to be a boolean. using strconv.
+// if it is a float then it returns true on the value != 0
+// if the value doesn't exit, returns elze
+func AsBoolOr(item map[string]interface{}, key string, elze bool) bool {
+    if v, ok := item[key].(string); ok {
+        if b, bok := strconv.ParseBool(v); bok == nil {
+            return b
+        }
+        return elze
+    }
+    if v, ok := item[key].(float64); ok {
+        return v != 0
+    }
+    return elze
+}
+
+
+// Unmarshalls a JSON response from AWS.
+func Unmarshal(in map[string]map[string]interface{}, out interface{}) error {
+    reflectVal := reflect.ValueOf(out)
+    if !reflectVal.IsValid() {
+        return errors.New("Out is not valid")
+    }
+    reflectType := reflectVal.Type()
+    if reflectType.Kind() != reflect.Ptr {
+        return errors.New("Out is not valid pointer")
+    }
+    reflectVal = reflectVal.Elem()
+    reflectType = reflectVal.Type()
+    if reflectType.Kind() != reflect.Struct {
+        return errors.New("Out is not valid pointer to a struct")
+    }
+    for i := 0; i < reflectType.NumField(); i++ {
+        f := reflectType.Field(i)
+        if f.PkgPath != "" {
+            continue // unexported
+        }
+        tag := f.Tag.Get("dynamo")
+        if tag == "-" {
+            continue
+        }
+        name := tag
+        if name == "" {
+            name = f.Name
+        }
+        switch f.Type.Kind() {
+        case reflect.String:
+            if asStr, ok := in[name]["S"].(string); ok {
+                reflectVal.FieldByIndex(f.Index).SetString(asStr)
+            }
+            break
+        case reflect.Int, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Int8:
+            if asNum, ok := in[name]["N"].(string); ok {
+                asInt, err := strconv.ParseInt(asNum, 10, 64)
+                if err != nil {
+                    return err
+                }
+                reflectVal.FieldByIndex(f.Index).SetInt(asInt)
+            }
+            break
+        case reflect.Uint, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uint8:
+            if asNum, ok := in[name]["N"].(string); ok {
+                asInt, err := strconv.ParseUint(asNum, 10, 64)
+                if err != nil {
+                    return err
+                }
+                reflectVal.FieldByIndex(f.Index).SetUint(asInt)
+            }
+            break
+        case reflect.Float32, reflect.Float64:
+            if asNum, ok := in[name]["N"].(string); ok {
+                asFloat, err := strconv.ParseFloat(asNum, 64)
+                if err != nil {
+                    return err
+                }
+                reflectVal.FieldByIndex(f.Index).SetFloat(asFloat)
+            }
+            break
+        case reflect.Array, reflect.Slice:
+            err := decodeArray(in[name], reflectVal.FieldByIndex(f.Index))
+            if err != nil {
+                return err
+            }
+            break
+        default:
+            hasItem, ok := in[name]
+            if !ok {
+                break
+            }
+            if asStr, ok := hasItem["S"].(string); ok {
+                as := reflect.New(f.Type)
+                err := json.Unmarshal([]byte(asStr), as.Interface())
+                if err != nil {
+                    return err
+                }
+                reflectVal.FieldByIndex(f.Index).Set(as.Elem())
+            } else {
+                return errors.New("Cannot decode field: " + name)
+            }
+        }
+    }
+    return nil
+}
+
+func decodeArray(in map[string]interface{}, v reflect.Value) error {
+    if in == nil {
+        return nil
+    }
+    k := v.Type().Elem().Kind()
+    t := v.Type()
+    switch k {
+    case reflect.String:
+        if asStr, ok := in["SS"].([]interface{}); ok {
+            v.Set(reflect.MakeSlice(t, len(asStr), len(asStr)))
+            for i := range asStr {
+                v.Index(i).SetString(asStr[i].(string))
+            }
+        }
+        return nil
+        break
+    case reflect.Int, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Int8:
+        if asNum, ok := in["NS"].([]interface{}); ok {
+            v.Set(reflect.MakeSlice(t, len(asNum), len(asNum)))
+            for i := range asNum {
+                asInt, err := strconv.ParseInt(asNum[i].(string), 10, 64)
+                if err != nil {
+                    return err
+                }
+                v.Index(i).SetInt(asInt)
+            }
+        }
+        return nil
+    case reflect.Uint, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uint8:
+        if asNum, ok := in["NS"].([]interface{}); ok {
+            v.Set(reflect.MakeSlice(t, len(asNum), len(asNum)))
+            for i := range asNum {
+                asInt, err := strconv.ParseUint(asNum[i].(string), 10, 64)
+                if err != nil {
+                    return err
+                }
+                v.Index(i).SetUint(asInt)
+            }
+        }
+        return nil
+    case reflect.Float32, reflect.Float64:
+        if asNum, ok := in["NS"].([]interface{}); ok {
+            v.Set(reflect.MakeSlice(t, len(asNum), len(asNum)))
+            for i := range asNum {
+                asFloat, err := strconv.ParseFloat(asNum[i].(string), 64)
+                if err != nil {
+                    return err
+                }
+                v.Index(i).SetFloat(asFloat)
+            }
+        }
+        return nil
+    }
+    if asStr, ok := in["S"].(string); ok {
+        as := reflect.New(t)
+        err := json.Unmarshal([]byte(asStr), as.Interface())
+        if err != nil {
+            return err
+        }
+        v.Set(as.Elem())
+        return err
+    }
+    return errors.New("Could not decode item")
+}
+
+
+// takes an struct and returns a map that can be used write or put item with
+//      you can rename a field via: `dynamo:"rename"` tag
+//      fields can be omitted via: `dynamo:"-"` tag
+//      empty strings are not marshalled, same for empty arrays
+//      non basic types (eg interfaces, structs, pointers) are marshalled as json string
+func Marshal(v interface{}) map[string]interface{} {
+    reflectVal := reflect.ValueOf(v)
+    if !reflectVal.IsValid() {
+        return nil
+    }
+    reflectType := reflectVal.Type()
+    if reflectType.Kind() != reflect.Struct {
+        return nil
+    }
+    result := make(map[string]interface{})
+    for i := 0; i < reflectType.NumField(); i++ {
+        f := reflectType.Field(i)
+        if f.PkgPath != "" {
+            continue // unexported
+        }
+        tag := f.Tag.Get("dynamo")
+        if tag == "-" {
+            continue
+        }
+        name := tag
+        if name == "" {
+            name = f.Name
+        }
+        switch f.Type.Kind() {
+        case reflect.String:
+            val := reflectVal.FieldByIndex(f.Index).String()
+            if val == "" {
+                continue
+            }
+            result[name] = awsgo.AwsStringItem{
+                Value: val,
+            }
+            break
+        case reflect.Int, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Int8:
+            val := reflectVal.FieldByIndex(f.Index).Int()
+            result[name] = awsgo.AwsNumberItem{
+                Value: float64(val), // backwards compat
+                ValueStr: strconv.FormatInt(val, 10),
+            }
+            break
+        case reflect.Uint, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uint8:
+            val := reflectVal.FieldByIndex(f.Index).Uint()
+            result[name] = awsgo.AwsNumberItem{
+                Value: float64(val), // backwards compat
+                ValueStr: strconv.FormatUint(val, 10),
+            }
+            break
+        case reflect.Float32, reflect.Float64:
+            val := reflectVal.FieldByIndex(f.Index).Float()
+            result[name] = awsgo.AwsNumberItem{
+                Value: val, // backwards compat
+                ValueStr: fmt.Sprintf("%f", val),
+            }
+            break
+        case reflect.Array, reflect.Slice:
+            val := encodeArray(reflectVal.FieldByIndex(f.Index))
+            if val == nil {
+                continue
+            }
+            result[name] = val
+            break
+        default:
+            val, _ := json.Marshal(reflectVal.FieldByIndex(f.Index).Interface())
+            result[name] = awsgo.AwsStringItem{
+                Value: string(val),
+            }
+        }
+    }
+    return result
+}
+
+func encodeArray(v reflect.Value) interface{} {
+    if v.Len() == 0 {
+        return nil
+    }
+    switch v.Type().Elem().Kind() {
+    case reflect.String:
+        return awsgo.AwsStringItem{
+            Values: v.Interface().([]string),
+        }
+    case reflect.Int, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Int8:
+        strArray := make([]string, v.Len())
+        for i := range strArray {
+            val := v.Index(i).Int()
+            strArray[i] = strconv.FormatInt(val, 10)
+        }
+        return awsgo.AwsNumberItem{
+            ValuesStr: strArray,
+        }
+    case reflect.Uint, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uint8:
+        strArray := make([]string, v.Len())
+        for i := range strArray {
+            val := v.Index(i).Uint()
+            strArray[i] = strconv.FormatUint(val, 10)
+        }
+        return awsgo.AwsNumberItem{
+            ValuesStr: strArray,
+        }
+    case reflect.Float32, reflect.Float64:
+        strArray := make([]string, v.Len())
+        for i := range strArray {
+            val := v.Index(i).Float()
+            strArray[i] = fmt.Sprintf("%f", val)
+        }
+        return awsgo.AwsNumberItem{
+            ValuesStr: strArray,
+        }
+    }
+    enc, _ := json.Marshal(v.Interface())
+    return awsgo.AwsStringItem{
+        Value: string(enc),
+    }
+}
+
+

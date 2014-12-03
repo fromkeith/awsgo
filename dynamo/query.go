@@ -41,7 +41,7 @@ type QueryRequest struct {
     awsgo.RequestBuilder
 
     AttributesToGet         []string    `json:",omitempty"`
-    ConsistentRead          bool        `json:",string"`
+    ConsistentRead          bool
     ExclusiveStartKey       map[string]interface{} `json:",omitempty"`
     IndexName               string      `json:",omitempty"`
     KeyConditions           map[string]KeyConditions `json:",omitempty"`

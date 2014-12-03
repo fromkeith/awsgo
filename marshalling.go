@@ -36,11 +36,11 @@ import (
 )
 
 
-type awsStringItem struct {
+type AwsStringItem struct {
     Value string      `json:"S,omitempty"`
     Values []string   `json:"SS,omitempty"`
 }
-type awsNumberItem struct {
+type AwsNumberItem struct {
     Value float64       `json:"-"`
     Values []float64    `json:"-"`
     ValuesStr []string  `json:"NS,omitempty"`
@@ -48,8 +48,8 @@ type awsNumberItem struct {
 }
 
 
-func newStringItem(items ... string) awsStringItem {
-    var s awsStringItem
+func newStringItem(items ... string) AwsStringItem {
+    var s AwsStringItem
     if (len(items) == 1) {
         s.Value = items[0]
     } else {
@@ -61,8 +61,8 @@ func newStringItem(items ... string) awsStringItem {
     return s
 }
 
-func newNumberItem(items ... float64) awsNumberItem {
-    var s awsNumberItem
+func newNumberItem(items ... float64) AwsNumberItem {
+    var s AwsNumberItem
     if (len(items) == 1) {
         s.Value = items[0]
         s.ValueStr = fmt.Sprintf("%f", items[0])
@@ -79,7 +79,7 @@ func newNumberItem(items ... float64) awsNumberItem {
 
 // Converts from an unknown interface... like:
 //     string, []string, float, []float64
-// into the expected awsgo.awsStringItem or awsgo.awsNumberItem
+// into the expected awsgo.AwsStringItem or awsgo.AwsNumberItem
 func ConvertToAwsItem(unknown interface{}) interface{} {
     switch j := unknown.(type) {
         case string:
@@ -101,7 +101,7 @@ func ConvertToAwsItem(unknown interface{}) interface{} {
         case uint32:
             return newNumberItem(float64(j))
         case []string:
-            return awsStringItem{"", j}
+            return AwsStringItem{"", j}
         case []int:
             // we need to cast these over
             vals64 := make([]float64, len(j))
@@ -153,9 +153,9 @@ func ConvertToAwsItem(unknown interface{}) interface{} {
             return newNumberItem(vals64...)
         case []float64:
             return newNumberItem(j...)
-        case awsNumberItem:
+        case AwsNumberItem:
             return j
-        case awsStringItem:
+        case AwsStringItem:
             return j
         default:
             panic(fmt.Sprintf("Unknown data type: %v %T", j, j))

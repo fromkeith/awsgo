@@ -212,6 +212,11 @@ func (gir BatchWriteItemRequest) Request() (*BatchWriteItemResponse, error) {
 
 // makes the request, and tries to include the unprocessed request items in subsequent requests
 func (gir BatchWriteItemRequest) RequestIncludingUnprocessed() (*BatchWriteItemResponse, error) {
+    headerCopy := make(map[string]string)
+    for k, v := range gir.Headers {
+        headerCopy[k] = v
+    }
+
     resp, err := gir.Request()
     if err != nil {
         return resp, err
@@ -228,7 +233,7 @@ func (gir BatchWriteItemRequest) RequestIncludingUnprocessed() (*BatchWriteItemR
         time.Sleep(time.Duration(backOff * 100))
 
         retryRequest := NewBatchWriteItemRequest()
-        retryRequest.RequestBuilder = gir.deepCopyRequestBuilder()
+        retryRequest.RequestBuilder = gir.deepCopyRequestBuilder(headerCopy)
         retryRequest.RequestItems = resp.UnprocessedItems
         resp, err = retryRequest.Request()
         if err != nil {
@@ -238,7 +243,7 @@ func (gir BatchWriteItemRequest) RequestIncludingUnprocessed() (*BatchWriteItemR
     return resp, nil
 }
 
-func (gir BatchWriteItemRequest) deepCopyRequestBuilder() awsgo.RequestBuilder {
+func (gir BatchWriteItemRequest) deepCopyRequestBuilder(headerCopy map[string]string) awsgo.RequestBuilder {
     var theCopy awsgo.RequestBuilder
     theCopy.Host.Service = gir.Host.Service
     theCopy.Host.Region = gir.Host.Region
@@ -249,7 +254,7 @@ func (gir BatchWriteItemRequest) deepCopyRequestBuilder() awsgo.RequestBuilder {
 
     theCopy.Key = gir.Key
     theCopy.Headers = make(map[string]string)
-    for k, v := range gir.Headers {
+    for k, v := range headerCopy {
         theCopy.Headers[k] = v
     }
     theCopy.RequestMethod = gir.RequestMethod
@@ -260,9 +265,15 @@ func (gir BatchWriteItemRequest) deepCopyRequestBuilder() awsgo.RequestBuilder {
 // Makes multiple requests, if too many actions were added.
 // Also automatically retries unprocessed items.
 // returns on the first error.
-func (gir BatchWriteItemRequest) RequestSplit() ([]*BatchWriteItemResponse, error) {
+// @param sleep - the amount of time to sleep between requests. 0 implies no added sleeping
+func (gir BatchWriteItemRequest) RequestSplit(sleep time.Duration) ([]*BatchWriteItemResponse, error) {
 
     responses := make([]*BatchWriteItemResponse, 0, 10)
+
+    headerCopy := make(map[string]string)
+    for k, v := range gir.Headers {
+        headerCopy[k] = v
+    }
 
     var curSubRequest *BatchWriteItemRequest
     itemsInSet := 0
@@ -270,7 +281,7 @@ func (gir BatchWriteItemRequest) RequestSplit() ([]*BatchWriteItemResponse, erro
         for i := range reqs {
             if curSubRequest == nil {
                 curSubRequest = NewBatchWriteItemRequest()
-                curSubRequest.RequestBuilder = gir.deepCopyRequestBuilder()
+                curSubRequest.RequestBuilder = gir.deepCopyRequestBuilder(headerCopy)
                 curSubRequest.ReturnConsumedCapacity = gir.ReturnConsumedCapacity
                 curSubRequest.ReturnItemCollectionMetrics = gir.ReturnItemCollectionMetrics
                 itemsInSet = 0
@@ -285,6 +296,9 @@ func (gir BatchWriteItemRequest) RequestSplit() ([]*BatchWriteItemResponse, erro
                 resp, err := curSubRequest.RequestIncludingUnprocessed()
                 if err != nil {
                     return responses, err
+                }
+                if sleep != 0 {
+                    time.Sleep(sleep)
                 }
                 if len(responses) == cap(responses) {
                     newItems := make([]*BatchWriteItemResponse, len(responses) * 2)

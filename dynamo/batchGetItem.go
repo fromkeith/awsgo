@@ -38,13 +38,13 @@ import (
 
 type BatchGetItemRequestTable struct {
     AttributesToGet        []string  `json:",omitempty"`
-    ConsistentRead         bool     `json:",string"`
+    ConsistentRead         bool
     Search                 []map[string]interface{}  `json:"Keys"` 
 }
 
 type batchGetItemRequestTableDeserialized struct {
     AttributesToGet        []string  `json:",omitempty"`
-    ConsistentRead         bool     `json:",string"`
+    ConsistentRead         bool
     Search                 []map[string]map[string]interface{}  `json:"Keys"` 
 }
 
@@ -82,7 +82,7 @@ func NewBatchGetItemRequest() *BatchGetItemRequest {
     req.CanonicalUri = "/"
     req.Host.Service = ""
     req.Host.Region = ""
-    req.Host.Domain = ""
+    req.Host.Domain = "amazonaws.com"
     req.Key.AccessKeyId = ""
     req.Key.SecretAccessKey = ""
     return req
@@ -174,4 +174,18 @@ func (gir BatchGetItemRequest) Request() (*BatchGetItemResponse, error) {
         return nil, err
     }
     return resp.(*BatchGetItemResponse), err
+}
+
+
+func (resp *BatchGetItemResponse) Next(lastRequest *BatchGetItemRequest) (*BatchGetItemResponse, error) {
+    if len(resp.UnprocessedKeys) == 0 {
+        return nil, nil
+    }
+    req := NewBatchGetItemRequest()
+    req.RequestItems = resp.UnprocessedKeys
+    req.ReturnConsumedCapacity = lastRequest.ReturnConsumedCapacity
+    // std attributes
+    req.Host.Region = lastRequest.Host.Region
+    req.Key = lastRequest.Key
+    return req.Request()
 }
