@@ -38,11 +38,13 @@ import (
     "github.com/fromkeith/awsgo/sqs"
     "github.com/fromkeith/awsgo/ses"
     "github.com/fromkeith/awsgo/cloudwatch"
+    "github.com/fromkeith/awsgo/swf"
     "io/ioutil"
     "bytes"
     "crypto/md5"
     "time"
     "math/rand"
+    "log"
 )
 
 const (
@@ -523,11 +525,24 @@ func DescribeLogStuff() {
     }
 }
 
+
+func pollForDecisionTask() {
+    req := swf.NewPollForActivityTaskRequest()
+    req.Domain = "test"
+    req.Identity = "example"
+    req.TaskList.Name = "hoho"
+    req.Host.Region = "us-west-2"
+    req.Key, _ = awsgo.GetSecurityKeys()
+    r, err := req.Request()
+    log.Println("Err: ", err)
+    log.Println("Resp: ", r)
+}
+
 func main() {
     //TestGetMetricStatistics()
     //TestCreateLogGroup()
     //TestGetLogEvents()
-    DescribeLogStuff()
+    //DescribeLogStuff()
 
     //TestGetItem()
     //TestUpdateItem()
@@ -542,4 +557,6 @@ func main() {
     //TestSesSendEmail()
     //TestPutMetric()
     //TestDescribeInstance()
+
+    pollForDecisionTask()
 }

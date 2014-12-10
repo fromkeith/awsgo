@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, fromkeith
+ * Copyright (c) 2014, fromkeith
  * All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without modification,
@@ -58,6 +58,7 @@ const (
     RequestSigningType_AWS4 = 1
     RequestSigningType_REST = 2
     RequestSigningType_AWS2 = 3
+    RequestSigningType_AWS3 = 4
 )
 
 
@@ -226,7 +227,9 @@ func (req AwsRequest) Do() (io.ReadCloser, map[string]string, int, error) {
     // add the required headers
     req.Headers["Host"] = strings.ToLower(req.Host.ToString())
     req.Headers["user-agent"] = "go-aws-client-0.1"
-    req.Headers["x-amz-date"] = IsoDate(req.Date)
+    if _, ok := req.Headers["x-amz-date"]; !ok {
+        req.Headers["x-amz-date"] = IsoDate(req.Date)
+    }
     if req.Key.token != "" {
         req.Headers["x-amz-security-token"] = req.Key.token
     }
@@ -371,6 +374,8 @@ func signRequest(req *AwsRequest) error {
         req.createRestSignature()
     } else if req.RequestSigningType == RequestSigningType_AWS2 {
         req.createV2Signature()
+    } else if req.RequestSigningType == RequestSigningType_AWS3 {
+        req.createSignatureAws3()
     } else {
         return errors.New("Invalid request signing type")
     }
@@ -385,7 +390,7 @@ func (req * AwsRequest) createRestSignature() {
         md5Hasher.Write([]byte(req.Payload)) // TODO: check return code?
         payloadHash = string(md5Hasher.Sum(nil))
     }
-    canonicalHeaders, _  := req.createCanonicalHeaders("x-amz-")
+    canonicalHeaders, _  := req.createCanonicalHeaders("x-amz-", false)
     canonicalResource := fmt.Sprintf("%s", req.CanonicalUri)
 
     stringToSign := fmt.Sprintf("%s\n%s\n%s\n%s\n%s%s",
@@ -400,7 +405,7 @@ func (req * AwsRequest) createRestSignature() {
     req.Headers["Authorization"] = authorization
 }
 
-func (req * AwsRequest) createCanonicalHeaders(prefixReq string) (canonicalHeaders string, signedHeaders string) {
+func (req * AwsRequest) createCanonicalHeaders(prefixReq string, includeHost bool) (canonicalHeaders string, signedHeaders string) {
     mapKeys := make([]string, len(req.Headers))
     i := 0
     for k := range req.Headers {
@@ -413,7 +418,9 @@ func (req * AwsRequest) createCanonicalHeaders(prefixReq string) (canonicalHeade
     for i := range mapKeys {
         if prefixReq != "" {
             if !strings.HasPrefix(strings.ToLower(mapKeys[i]), prefixReq) {
-                continue
+                if !includeHost || strings.ToLower(mapKeys[i]) != "host" {
+                    continue
+                }
             }
         }
         if len(signedHeaders) > 0 {
@@ -516,7 +523,7 @@ func (req * AwsRequest) createSignature() {
 
     req.Headers["x-amz-content-sha256"] = fmt.Sprintf("%x", req.payloadHash)
 
-    canonicalHeaders, signedHeaders := req.createCanonicalHeaders("")
+    canonicalHeaders, signedHeaders := req.createCanonicalHeaders("", false)
 
     canonicalReq := fmt.Sprintf("%s\n%s\n%s\n%s\n%s\n%x",
         req.RequestMethod, fixedUrl, canonicalQueryString, canonicalHeaders, signedHeaders, req.payloadHash)
@@ -557,3 +564,47 @@ func (req * AwsRequest) createSignature() {
             req.Key.AccessKeyId, simpleDate(req.Date), req.Host.Region, fixedService, signedHeaders, req.signature)
 }
 
+
+// http://docs.aws.amazon.com/amazonswf/latest/developerguide/HMACAuth-swf.html
+func (req * AwsRequest) createSignatureAws3() {
+    req.Headers["x-amz-date"] = req.Date.Format(time.RFC1123)
+
+
+    canonicalHeaders, signedHeaders  := req.createCanonicalHeaders("x-amz-", true)
+
+    canonicalQueryString := ""
+    fixedUrl := req.CanonicalUri
+    if strings.Contains(req.CanonicalUri, "?") {
+        urlSplit := strings.Split(req.CanonicalUri, "?")
+        fixedUrl = urlSplit[0]
+        sp := strings.Split(urlSplit[1], "&")
+        sortutil.CiAsc(sp)
+        for i := range sp {
+            if len(canonicalQueryString) > 0 {
+                unEscaped := strings.Replace(sp[i], "+", "%20", -1)
+                canonicalQueryString = fmt.Sprintf("%s&%s", canonicalQueryString, unEscaped)
+            } else {
+                canonicalQueryString = sp[i]
+            }
+        }
+    }
+
+    stringToSign := fmt.Sprintf("%s\n%s\n%s\n%s\n%s",
+        req.RequestMethod,
+        fixedUrl,
+        canonicalQueryString,
+        canonicalHeaders,
+        req.Payload,
+    )
+
+    hasher := sha256.New()
+    hasher.Write([]byte(stringToSign))
+    sumToSign := hasher.Sum(nil)
+
+    hmacHasher := hmac.New(sha256.New, []byte(req.Key.SecretAccessKey))
+    hmacHasher.Write(sumToSign)
+
+    signature := base64.StdEncoding.EncodeToString(hmacHasher.Sum(nil))
+    authorization := fmt.Sprintf("AWS3 AWSAccessKeyId=%s,Algorithm=HmacSHA256,SignedHeaders=%s,Signature=%s", req.Key.AccessKeyId, signedHeaders, signature)
+    req.Headers["X-Amzn-Authorization"] = authorization
+}
