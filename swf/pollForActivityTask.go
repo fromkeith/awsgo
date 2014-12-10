@@ -72,7 +72,9 @@ func (req *PollForActivityTaskRequest) VerifyInput() error {
 }
 
 func (req PollForActivityTaskRequest) DeMarshalResponse(response []byte, headers map[string]string, statusCode int) interface{} {
-	log.Println("response: ", string(response))
+	if statusCode != 200 {
+		log.Println("response: ", string(response))
+	}
 	resp := new(PollForActivityTaskResponse)
 	if err := json.Unmarshal(response, resp); err != nil {
 		return err

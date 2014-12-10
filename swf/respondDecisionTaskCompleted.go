@@ -154,8 +154,8 @@ func (req *RespondDecisionTaskCompletedRequest) VerifyInput() error {
 }
 
 func (req RespondDecisionTaskCompletedRequest) DeMarshalResponse(response []byte, headers map[string]string, statusCode int) interface{} {
-	log.Println("response: ", string(response))
 	if statusCode != 200 {
+		log.Println("response: ", string(response))
 		return errors.New("Bad response code!")
 	}
 	return new(RespondDecisionTaskCompletedResponse)

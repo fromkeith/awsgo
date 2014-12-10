@@ -204,7 +204,6 @@ forloop:
 
 
 func (a *ActivityContext) recycle() {
-    a.heartbeatTimer.Stop()
     close(a.HeartbeatDetails)
     close(a.CancelRequested)
     if a.owningPool != nil {
@@ -215,6 +214,7 @@ func (a *ActivityContext) recycle() {
 
 // mark this activity as succesfully completed
 func (a *ActivityContext) Completed(result string) {
+    a.heartbeatTimer.Stop()
     defer a.recycle()
     for i := 0; ; i++ {
         if err := a.markCompletedRequest(result); err != nil {
@@ -241,6 +241,7 @@ func (a *ActivityContext) markCompletedRequest(result string) error {
 
 // mark this activity as Failed
 func (a *ActivityContext) Failed(reason, details string) {
+    a.heartbeatTimer.Stop()
     defer a.recycle()
     for i := 0; ; i++ {
         if err := a.markFailedRequest(reason, details); err != nil {
@@ -268,6 +269,7 @@ func (a *ActivityContext) markFailedRequest(reason, details string) error {
 
 // mark this activity as succesfully canceled
 func (a *ActivityContext) SuccesfullyCancel(details string) {
+    a.heartbeatTimer.Stop()
     defer a.recycle()
 
     for i := 0; ; i++ {

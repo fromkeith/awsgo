@@ -425,7 +425,9 @@ func (req *PollForDecisionTaskRequest) VerifyInput() error {
 }
 
 func (req PollForDecisionTaskRequest) DeMarshalResponse(response []byte, headers map[string]string, statusCode int) interface{} {
-	log.Println("response: ", string(response))
+	if statusCode != 200 {
+		log.Println("response: ", string(response))
+	}
 	resp := new(PollForDecisionTaskResponse)
 	if err := json.Unmarshal(response, resp); err != nil {
 		return err

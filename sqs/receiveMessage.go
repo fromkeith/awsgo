@@ -86,7 +86,7 @@ func NewReceiveMessageRequest() *ReceiveMessageRequest {
     req.WaitTimeSeconds = -1
     req.Host.Service = "sqs"
     req.Host.Region = ""
-    req.Host.Domain = ""
+    req.Host.Domain = "amazonaws.com"
     req.Key.AccessKeyId = ""
     req.Key.SecretAccessKey = ""
     req.Headers = make(map[string]string)

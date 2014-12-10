@@ -397,3 +397,15 @@ func (s* SwfWorkflow) Complete(result string) {
         },
     )
 }
+
+func (s* SwfWorkflow) Fail(reason, details string) {
+    s.decisions = append(s.decisions,
+        swf.Decision{
+            DecisionType: "FailWorkflowExecution",
+            FailWorkflowExecutionDecisionAttributes: &swf.FailWorkflowExecutionDecisionAttributes{
+                Details: details,
+                Reason: reason,
+            },
+        },
+    )
+}

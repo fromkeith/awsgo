@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, fromkeith
+ * Copyright (c) 2014, fromkeith
  * All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without modification,
@@ -39,61 +39,86 @@ import (
 )
 
 
-type SendMessageRequest struct {
-    awsgo.RequestBuilder
 
-    MessageBody  string
-    DelaySeconds int
-    TaskQueue string
+type SendMessageBatchRequestEntry struct {
+    DelaySeconds            int64
+    Id                      string
+    MessageBody             string
 }
 
-type SendMessageResult struct {
+type SendBatchMessageRequest struct {
+    awsgo.RequestBuilder
+
+    QueueUrl            string
+    Entries        []SendMessageBatchRequestEntry
+}
+
+type SendMessageBatchResult struct {
+    Id              string
     MessageId string
     MD5OfMessageBody string
 }
 
-type SendMessageResponse struct {
-    SendMessageResult SendMessageResult
+
+type BatchResultError struct {
+    Code            string
+    Id              string
+    Message         string
+    SenderFault     bool
+}
+
+type SendBatchMessageResponse struct {
+    SendMessageBatchResult      []SendMessageBatchResult            `xml:"SendMessageBatchResultEntry>member"`
+    BatchResultError            []BatchResultError                  `xml:"BatchResultErrorEntry>member"`
     ResponseMetadata awsgo.ResponseMetaData
 }
 
 
-func NewSendMessageRequest() *SendMessageRequest {
-    req := new(SendMessageRequest)
+func NewSendBatchMessageRequest() *SendBatchMessageRequest {
+    req := new(SendBatchMessageRequest)
     req.Host.Service = "sqs"
     req.Host.Region = ""
     req.Host.Domain = "amazonaws.com"
     req.Key.AccessKeyId = ""
     req.Key.SecretAccessKey = ""
     req.Headers = make(map[string]string)
-    req.RequestMethod = "GET"
+    req.RequestMethod = "POST"
     req.CanonicalUri = "/"
     return req
 }
 
-func (gir * SendMessageRequest) VerifyInput() (error) {
+func (gir * SendBatchMessageRequest) VerifyInput() (error) {
     gir.Host.Service = "sqs"
     if len(gir.Host.Region) == 0 {
         return errors.New("Host.Region cannot be empty")
     }
-    if len(gir.TaskQueue) == 0 {
-        return errors.New("Task Queue cannot be empty")
+    if len(gir.QueueUrl) == 0 {
+        return errors.New("QueueUrl cannot be empty")
+    }
+    query := make(url.Values)
+    query.Add("Action", "SendMessageBatch")
+    query.Add("Version", "2012-11-05")
+
+    for i := range gir.Entries {
+        query.Add(fmt.Sprintf("SendMessageBatchRequestEntry.%d.Id", i + 1), gir.Entries[i].Id)
+        query.Add(fmt.Sprintf("SendMessageBatchRequestEntry.%d.MessageBody", i + 1), gir.Entries[i].MessageBody)
+        if gir.Entries[i].DelaySeconds > 0 {
+            query.Add(fmt.Sprintf("SendMessageBatchRequestEntry.%d.DelaySeconds", i + 1), fmt.Sprintf("%d", gir.Entries[i].DelaySeconds))
+        }
     }
 
-    gir.CanonicalUri = fmt.Sprintf("%s?Action=%s&Version=%s&MessageBody=%s",
-        gir.TaskQueue,
-        url.QueryEscape("SendMessage"),
-        url.QueryEscape("2012-11-05"),
-        url.QueryEscape(gir.MessageBody),
-        )
+    gir.CanonicalUri = fmt.Sprintf("%s?%s",
+        gir.QueueUrl,
+        query.Encode(),
+    )
     return nil
 }
 
-func (gir SendMessageRequest) DeMarshalResponse(response []byte, headers map[string]string, statusCode int) (interface{}) {
+func (gir SendBatchMessageRequest) DeMarshalResponse(response []byte, headers map[string]string, statusCode int) (interface{}) {
     if err := awsgo.CheckForErrorXml(response); err != nil {
         return err
     }
-    giResponse := new(SendMessageResponse)
+    giResponse := new(SendBatchMessageResponse)
     //fmt.Println(string(response))
     err := xml.Unmarshal(response, giResponse)
     if err != nil {
@@ -102,7 +127,7 @@ func (gir SendMessageRequest) DeMarshalResponse(response []byte, headers map[str
     return giResponse
 }
 
-func (gir SendMessageRequest) Request() (*SendMessageResponse, error) {
+func (gir SendBatchMessageRequest) Request() (*SendBatchMessageResponse, error) {
     request, err := awsgo.BuildEmptyContentRequest(&gir)
     if err != nil {
         return nil, err
@@ -112,5 +137,5 @@ func (gir SendMessageRequest) Request() (*SendMessageResponse, error) {
     if resp == nil {
         return nil, err
     }
-    return resp.(*SendMessageResponse), err
+    return resp.(*SendBatchMessageResponse), err
 }
