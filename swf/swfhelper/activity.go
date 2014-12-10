@@ -55,6 +55,8 @@ type ActivityContext struct {
     // when the next heartbeat is sent out, this channel will be checked for the last message.
     HeartbeatDetails    chan string
     CancelRequested     chan bool
+
+    owningPool          chan bool
 }
 
 type ActivityWorker struct {
@@ -66,6 +68,10 @@ type ActivityWorker struct {
     Region              string
 
     activityHandlers        map[string]ActivityHandler
+
+    // maximum number of workers we can spawn. Default is infinite
+    MaxWorkers          int
+    workerPool          chan bool
 }
 
 
@@ -88,6 +94,13 @@ func (a *ActivityWorker) Start() error {
         }
         a.Identity = fmt.Sprintf("%s-%s", ec2Identity, uuid.New())
     }
+    if a.MaxWorkers > 0 {
+        a.workerPool = make(chan bool, a.MaxWorkers)
+        // fill it in
+        for i := 0; i < a.MaxWorkers; i++ {
+            a.workerPool <- true
+        }
+    }
     for {
         a.startActivityGetting()
     }
@@ -101,6 +114,10 @@ func (a *ActivityWorker) startActivityGetting() {
         }
     }()
     for {
+        if a.MaxWorkers > 0 {
+            // wait for 1
+            <- a.workerPool
+        }
         poll := swf.NewPollForActivityTaskRequest()
         poll.Domain = a.Domain
         poll.Identity = a.Identity
@@ -113,10 +130,12 @@ func (a *ActivityWorker) startActivityGetting() {
         if err != nil {
             log.Println("Error making poll for activity task request.", err)
             time.Sleep(1 * time.Second)
+            a.workerPool <- true
             continue
         }
         // no activity to work on
         if resp.ActivityId == "" {
+            a.workerPool <- true
             continue
         }
         a.handleActivityRequest(resp)
@@ -135,6 +154,7 @@ func (a *ActivityWorker) handleActivityRequest(resp *swf.PollForActivityTaskResp
             region: a.Region,
             HeartbeatDetails: make(chan string),
             CancelRequested: make(chan bool),
+            owningPool: a.workerPool,
         }
         act.restartHeartbeat()
         go h(&act)
@@ -187,6 +207,9 @@ func (a *ActivityContext) recycle() {
     a.heartbeatTimer.Stop()
     close(a.HeartbeatDetails)
     close(a.CancelRequested)
+    if a.owningPool != nil {
+        a.owningPool <- true
+    }
 }
 
 

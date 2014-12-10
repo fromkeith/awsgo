@@ -54,6 +54,7 @@ type SwfWorkflow struct {
 
     region              string
 
+    owningPool          chan *SwfWorkflow
 }
 // called on new coroutines when a new workflow needs to be executed.
 type WorkflowHandler func(w *SwfWorkflow)
@@ -92,6 +93,21 @@ type TaskResult struct {
     //          FailureCause: 'details' provided in the failure if any. For now we don't return 'reason'
     FailureType                 string
     FailureCause                string
+}
+
+// will poll for new decision tasks, and delegate them in new coroutines via the workflowhandler.
+type Decider struct {
+    Domain          string
+    // default is: ec2 instace Id + uuid
+    Identity        string
+    TaskList        string
+
+    Region          string
+    // maximum number of workers we can spawn. Default is infinite
+    MaxWorkers      int
+
+    workerPool          chan *SwfWorkflow
+    workflowHandlers    map[string]WorkflowHandler
 }
 
 func (s * SwfWorkflow) Go(do Task, data string) TaskResultChan {
@@ -223,24 +239,22 @@ func intPtrToString(v *int64) string {
 }
 
 
-type Decider struct {
-    Domain          string
-    // default is: ec2 instace Id + uuid
-    Identity        string
-    TaskList        string
-
-    Region          string
-
-    workflowHandlers    map[string]WorkflowHandler
-}
-
-
 func (d *Decider) RegisterWorkflow(workflow swf.WorkflowType, handler WorkflowHandler) {
     if len(d.workflowHandlers) == 0 {
         d.workflowHandlers = make(map[string]WorkflowHandler)
     }
     key := fmt.Sprintf("%s==>%s", workflow.Name, workflow.Version)
     d.workflowHandlers[key] = handler
+}
+
+func (d *Decider) newWorker() *SwfWorkflow {
+    return &SwfWorkflow{
+        history: make([]swf.HistoryEvent, 0, 10),
+        decisions: make([]swf.Decision, 0, 5),
+        nextActivityId: 0,
+        region: d.Region,
+        owningPool: d.workerPool,
+    }
 }
 
 // starts polling for decisions, indefinitely.
@@ -251,6 +265,12 @@ func (d *Decider) Start() error {
             return err
         }
         d.Identity = fmt.Sprintf("%s-%s", ec2Identity, uuid.New())
+    }
+    if d.MaxWorkers > 0 {
+        d.workerPool = make(chan *SwfWorkflow, d.MaxWorkers)
+        for i := 0; i < d.MaxWorkers; i++ {
+            d.workerPool <- d.newWorker()
+        }
     }
     for {
         d.startDeciding()
@@ -265,6 +285,12 @@ func (d *Decider) startDeciding() {
         }
     }()
     for {
+        worker := <- d.workerPool
+        worker.history = worker.history[0:0]
+        worker.nextActivityId = 0
+        worker.decisions = worker.decisions[0:0]
+        worker.taskToken = ""
+
         poll := swf.NewPollForDecisionTaskRequest()
         poll.Domain = d.Domain
         poll.Identity = d.Identity
@@ -277,35 +303,30 @@ func (d *Decider) startDeciding() {
         if err != nil {
             log.Println("Error making poll for decision request.", err)
             time.Sleep(1 * time.Second)
+            d.workerPool <- worker
             continue
         }
         if resp.TaskToken == "" {
+            d.workerPool <- worker
             continue
         }
-        d.handleDecisionTaskResponse(resp)
+        d.handleDecisionTaskResponse(resp, worker)
     }
 }
 
-func (d *Decider) handleDecisionTaskResponse(resp *swf.PollForDecisionTaskResponse) {
-    events := d.fillInHistory(resp)
+func (d *Decider) handleDecisionTaskResponse(resp *swf.PollForDecisionTaskResponse, worker *SwfWorkflow) {
+    worker.history = d.fillInHistory(resp, worker.history)
 
     key := fmt.Sprintf("%s==>%s", resp.WorkflowType.Name, resp.WorkflowType.Version)
     if h, ok := d.workflowHandlers[key]; !ok {
         log.Panicf("Could not find workflow handler for key: %v", key)
     } else {
-        workflow := &SwfWorkflow{
-            history: events,
-            decisions: make([]swf.Decision, 0, 5),
-            nextActivityId: 0,
-            taskToken: resp.TaskToken,
-            region: d.Region,
-        }
-        go h(workflow)
+        worker.taskToken = resp.TaskToken
+        go h(worker)
     }
 }
 
-func (d *Decider) fillInHistory(lastResp *swf.PollForDecisionTaskResponse) []swf.HistoryEvent {
-    events := make([]swf.HistoryEvent, 0, 200)
+func (d *Decider) fillInHistory(lastResp *swf.PollForDecisionTaskResponse, events []swf.HistoryEvent) []swf.HistoryEvent {
     for lastResp != nil {
         events = append(events, lastResp.Events...)
 
@@ -342,6 +363,11 @@ func (d *Decider) fillInHistory(lastResp *swf.PollForDecisionTaskResponse) []swf
 // Must be called for our decisions to be posted to the server
 // in your handler you should always defer Decide() so that it gets executed.
 func (w * SwfWorkflow) Decide() {
+    // return to the pool
+    defer func () {
+        w.owningPool <- w
+    }()
+
     for i := 0; ; i ++ {
         req := swf.NewRespondDecisionTaskCompletedRequest()
         req.Decisions = w.decisions

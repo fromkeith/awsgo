@@ -47,6 +47,7 @@ func main() {
         Domain: "yewwdev",
         TaskList: "hello1",
         Identity: "atHome1",
+        MaxWorkers: 1,
     }
     decider.RegisterWorkflow(swf.WorkflowType{Name:"hello", Version:"1"}, BasicDecider)
     go decider.Start()
@@ -56,6 +57,7 @@ func main() {
         Domain: "yewwdev",
         TaskList: "actlist",
         Identity: "atHome1-worker",
+        MaxWorkers: 1,
     }
     act.RegisterActivity(swf.ActivityType{Name:"getnum", Version:"1"}, ActivityOne)
     act.Start()
