@@ -69,8 +69,8 @@ func (req *RespondActivityTaskHeartbeatRequest) VerifyInput() error {
 }
 
 func (req RespondActivityTaskHeartbeatRequest) DeMarshalResponse(response []byte, headers map[string]string, statusCode int) interface{} {
-    log.Println("response: ", string(response))
     if statusCode != 200 {
+        log.Println("RespondActivityTaskHeartbeatRequest.Response: ", string(response))
         return errors.New("Bad response code!")
     }
     resp := new(RespondActivityTaskHeartbeatResponse)

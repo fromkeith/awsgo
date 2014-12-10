@@ -68,15 +68,14 @@ func (req *RespondActivityTaskCompletedRequest) VerifyInput() error {
 }
 
 func (req RespondActivityTaskCompletedRequest) DeMarshalResponse(response []byte, headers map[string]string, statusCode int) interface{} {
-    log.Println("response: ", string(response))
     if statusCode != 200 {
+        log.Println("RespondActivityTaskCompletedRequest.Response: ", string(response))
         return errors.New("Bad response code!")
     }
     return new(RespondActivityTaskCompletedResponse)
 }
 
 func (req RespondActivityTaskCompletedRequest) Request() (*RespondActivityTaskCompletedResponse, error) {
-    log.Println("Completed: ", req.Result)
     request, err := awsgo.NewAwsRequest(&req, req)
     if err != nil {
         return nil, err
