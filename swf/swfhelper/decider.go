@@ -32,15 +32,16 @@
 package swfhelper
 
 import (
-    "github.com/fromkeith/awsgo"
-    "github.com/fromkeith/awsgo/swf"
-    "github.com/fromkeith/awsgo/ec2"
     "code.google.com/p/go-uuid/uuid"
+    "errors"
     "fmt"
+    "github.com/fromkeith/awsgo"
+    "github.com/fromkeith/awsgo/ec2"
+    "github.com/fromkeith/awsgo/swf"
     "log"
     "runtime/debug"
-    "time"
     "strconv"
+    "time"
 )
 
 
@@ -55,6 +56,7 @@ type SwfWorkflow struct {
     region              string
 
     owningPool          chan *SwfWorkflow
+    marshaler           Marshaler
 }
 // called on new coroutines when a new workflow needs to be executed.
 type WorkflowHandler func(w *SwfWorkflow)
@@ -93,6 +95,8 @@ type TaskResult struct {
     //          FailureCause: 'details' provided in the failure if any. For now we don't return 'reason'
     FailureType                 string
     FailureCause                string
+
+    marshaler                   Marshaler
 }
 
 // will poll for new decision tasks, and delegate them in new coroutines via the workflowhandler.
@@ -106,15 +110,26 @@ type Decider struct {
     // maximum number of workers we can spawn. Default is infinite
     MaxWorkers      int
 
+    // leave blank for default JSON marshaller
+    Marshaler       Marshaler
+
     workerPool          chan *SwfWorkflow
     workflowHandlers    map[string]WorkflowHandler
 }
 
-func (s * SwfWorkflow) Go(do Task, data string) TaskResultChan {
+func (t TaskResult) As(out interface{}) error {
+    if t.marshaler == nil {
+        return errors.New("Nothing to unmarshal with")
+    }
+    return t.marshaler.Unmarshal(t.Result, out)
+}
+
+func (s * SwfWorkflow) Go(do Task, data interface{}) TaskResultChan {
     thisId := fmt.Sprintf("activityId-%d", s.nextActivityId)
     s.nextActivityId ++
 
     response := make(TaskResultChan)
+
 
     // for now, just a full search (for i := range s.history)...
     // but we should be able to use some heuristics here..
@@ -135,6 +150,7 @@ func (s * SwfWorkflow) Go(do Task, data string) TaskResultChan {
                     response <- TaskResult{
                         activityId: thisId,
                         Result: s.history[i].ActivityTaskCompletedEventAttributes.Result,
+                        marshaler: s.marshaler,
                     }
                     close(response)
                 }()
@@ -209,6 +225,22 @@ func (s * SwfWorkflow) Go(do Task, data string) TaskResultChan {
             Name: do.TaskList,
         }
     }
+    var dataStr string
+    if data != nil {
+        var err error
+        dataStr, err = s.marshaler.Marshal(data)
+        if err != nil {
+            go func() {
+                response <- TaskResult{
+                    activityId: thisId,
+                    FailureType: "Marshal",
+                    FailureCause: err.Error(),
+                }
+                close(response)
+            }()
+            return response
+        }
+    }
     // we haven't schedule it yet.. so lets do that
     s.decisions = append(s.decisions,
         swf.Decision{
@@ -218,7 +250,7 @@ func (s * SwfWorkflow) Go(do Task, data string) TaskResultChan {
                 ActivityType: do.Activity,
                 Control: "", // ignoring for now
                 HeartbeatTimeout: intPtrToString(do.HeartbeatTimeout),
-                Input: data,
+                Input: dataStr,
                 ScheduleToCloseTimeout: intPtrToString(do.ScheduleToCloseTimeout),
                 ScheduleToStartTimeout: intPtrToString(do.ScheduleToStartTimeout),
                 StartToCloseTimeout: intPtrToString(do.StartToCloseTimeout),
@@ -254,6 +286,7 @@ func (d *Decider) newWorker() *SwfWorkflow {
         nextActivityId: 0,
         region: d.Region,
         owningPool: d.workerPool,
+        marshaler: d.Marshaler,
     }
 }
 
@@ -265,6 +298,9 @@ func (d *Decider) Start() error {
             return err
         }
         d.Identity = fmt.Sprintf("%s-%s", ec2Identity, uuid.New())
+    }
+    if d.Marshaler == nil {
+        d.Marshaler = JsonMarshaler{}
     }
     if d.MaxWorkers > 0 {
         d.workerPool = make(chan *SwfWorkflow, d.MaxWorkers)
@@ -387,12 +423,13 @@ func (w * SwfWorkflow) Decide() {
     }
 }
 
-func (s* SwfWorkflow) Complete(result string) {
+func (s* SwfWorkflow) Complete(a interface{}) {
+    res, _ := s.marshaler.Marshal(a)
     s.decisions = append(s.decisions,
         swf.Decision{
             DecisionType: "CompleteWorkflowExecution",
             CompleteWorkflowExecutionDecisionAttributes: &swf.CompleteWorkflowExecutionDecisionAttributes{
-                Result: result,
+                Result: string(res),
             },
         },
     )

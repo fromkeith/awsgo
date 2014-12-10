@@ -33,11 +33,12 @@ package swfhelper
 
 
 import (
-    "github.com/fromkeith/awsgo"
-    "github.com/fromkeith/awsgo/swf"
-    "github.com/fromkeith/awsgo/ec2"
     "code.google.com/p/go-uuid/uuid"
+    "errors"
     "fmt"
+    "github.com/fromkeith/awsgo"
+    "github.com/fromkeith/awsgo/ec2"
+    "github.com/fromkeith/awsgo/swf"
     "log"
     "runtime/debug"
     "time"
@@ -57,6 +58,8 @@ type ActivityContext struct {
     CancelRequested     chan bool
 
     owningPool          chan bool
+    marshaler           Marshaler
+    heartbeatTime       time.Duration
 }
 
 type ActivityWorker struct {
@@ -68,6 +71,10 @@ type ActivityWorker struct {
     Region              string
 
     activityHandlers        map[string]ActivityHandler
+    activityHeartbeats      map[string]time.Duration
+
+    // leave blank to use default json marshaller
+    Marshaler           Marshaler
 
     // maximum number of workers we can spawn. Default is infinite
     MaxWorkers          int
@@ -83,6 +90,14 @@ func (a *ActivityWorker) RegisterActivity(actType swf.ActivityType, handler Acti
     a.activityHandlers[key] = handler
 }
 
+// overrides our default heartbeat interval of 1 minute
+func (a *ActivityWorker) SetActivityHeartbeatInterval(actType swf.ActivityType, dur time.Duration) {
+    if len(a.activityHeartbeats) == 0 {
+        a.activityHeartbeats = make(map[string]time.Duration)
+    }
+    key := fmt.Sprintf("%s==>%s", actType.Name, actType.Version)
+    a.activityHeartbeats[key] = dur
+}
 
 
 // starts polling for activitiies, indefinitely.
@@ -93,6 +108,9 @@ func (a *ActivityWorker) Start() error {
             return err
         }
         a.Identity = fmt.Sprintf("%s-%s", ec2Identity, uuid.New())
+    }
+    if a.Marshaler == nil {
+        a.Marshaler = JsonMarshaler{}
     }
     if a.MaxWorkers > 0 {
         a.workerPool = make(chan bool, a.MaxWorkers)
@@ -155,6 +173,11 @@ func (a *ActivityWorker) handleActivityRequest(resp *swf.PollForActivityTaskResp
             HeartbeatDetails: make(chan string),
             CancelRequested: make(chan bool),
             owningPool: a.workerPool,
+            marshaler: a.Marshaler,
+            heartbeatTime: time.Minute,
+        }
+        if nd, ok := a.activityHeartbeats[key]; ok {
+            act.heartbeatTime = nd
         }
         act.restartHeartbeat()
         go h(&act)
@@ -163,7 +186,7 @@ func (a *ActivityWorker) handleActivityRequest(resp *swf.PollForActivityTaskResp
 
 
 func (a *ActivityContext) restartHeartbeat() {
-    a.heartbeatTimer = time.AfterFunc(time.Minute * 1, a.heartbeat)
+    a.heartbeatTimer = time.AfterFunc(a.heartbeatTime, a.heartbeat)
 }
 
 func (a *ActivityContext) heartbeat() {
@@ -213,11 +236,12 @@ func (a *ActivityContext) recycle() {
 
 
 // mark this activity as succesfully completed
-func (a *ActivityContext) Completed(result string) {
+func (a *ActivityContext) Completed(result interface{}) {
+    res, _ := a.marshaler.Marshal(result)
     a.heartbeatTimer.Stop()
     defer a.recycle()
     for i := 0; ; i++ {
-        if err := a.markCompletedRequest(result); err != nil {
+        if err := a.markCompletedRequest(string(res)); err != nil {
             if i > 10 {
                 log.Panicf("Failed to mark activity as completed!: %v", err)
             }
@@ -293,4 +317,11 @@ func (a *ActivityContext) markCanceledRequest(details string) error {
     canc.Key, _ = awsgo.GetSecurityKeys()
     _, err := canc.Request()
     return err
+}
+
+func (a *ActivityContext) As(out interface{}) error {
+    if a.marshaler == nil {
+        return errors.New("Nothing to unmarshal with")
+    }
+    return a.marshaler.Unmarshal(a.Input, out)
 }
