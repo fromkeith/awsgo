@@ -46,13 +46,13 @@ type CompleteWorkflowExecutionDecisionAttributes struct {
 	Result string `json:"result"`
 }
 type ContinueAsNewWorkflowExecutionDecisionAttributes struct {
-	ChildPolicy                  string   `json:"childPolicy"`
-	ExecutionStartToCloseTimeout string   `json:"executionStartToCloseTimeout"`
-	Input                        string   `json:"input"`
-	TagList                      []string `json:"tagList"`
-	TaskList                     TaskList `json:"taskList"`
-	TaskStartToCloseTimeout      string   `json:"taskStartToCloseTimeout"`
-	WorkflowTypeVersion          string   `json:"workflowTypeVersion"`
+	ChildPolicy                  string   `json:"childPolicy,omitempty"`
+	ExecutionStartToCloseTimeout string   `json:"executionStartToCloseTimeout,omitempty"`
+	Input                        string   `json:"input,omitempty"`
+	TagList                      []string `json:"tagList,omitempty"`
+	TaskList                     *TaskList `json:"taskList,omitempty"`
+	TaskStartToCloseTimeout      string   `json:"taskStartToCloseTimeout,omitempty"`
+	WorkflowTypeVersion          string   `json:"workflowTypeVersion,omitempty"`
 }
 type FailWorkflowExecutionDecisionAttributes struct {
 	Details string `json:"details"`

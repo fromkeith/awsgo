@@ -48,6 +48,8 @@ import (
 // an instance of a workflow
 type SwfWorkflow struct {
     nextActivityId      int64
+    nextOnceMarkerId    int64
+    nextTimerId         int64
 
     history             []swf.HistoryEvent
     decisions           []swf.Decision
@@ -77,6 +79,15 @@ type Task struct {
     StartToCloseTimeout         *int64
     // specifies the name of the task list in which to schedule the activity task.
     TaskList                    string
+}
+
+
+type TimerResultChan chan TimerResult
+
+type TimerResult struct {
+    timerId                     string
+    // if this was canceled of failed to be fired, this will be populated
+    FailureCause                string
 }
 
 type TaskResult struct {
@@ -284,6 +295,8 @@ func (d *Decider) newWorker() *SwfWorkflow {
         history: make([]swf.HistoryEvent, 0, 10),
         decisions: make([]swf.Decision, 0, 5),
         nextActivityId: 0,
+        nextOnceMarkerId: 0,
+        nextTimerId: 0,
         region: d.Region,
         owningPool: d.workerPool,
         marshaler: d.Marshaler,
@@ -324,6 +337,8 @@ func (d *Decider) startDeciding() {
         worker := <- d.workerPool
         worker.history = worker.history[0:0]
         worker.nextActivityId = 0
+        worker.nextOnceMarkerId = 0
+        worker.nextTimerId = 0
         worker.decisions = worker.decisions[0:0]
         worker.taskToken = ""
 
@@ -358,7 +373,16 @@ func (d *Decider) handleDecisionTaskResponse(resp *swf.PollForDecisionTaskRespon
         log.Panicf("Could not find workflow handler for key: %v", key)
     } else {
         worker.taskToken = resp.TaskToken
-        go h(worker)
+        go func () {
+            // catch any unexpected panics
+            defer func () {
+                rec := recover()
+                if rec != nil {
+                    log.Println("Error! ", rec)
+                }
+            }()
+            h(worker)
+        }()
     }
 }
 
@@ -394,6 +418,17 @@ func (d *Decider) fillInHistory(lastResp *swf.PollForDecisionTaskResponse, event
         }
     }
     return events
+}
+
+
+// decodes the execution workflows input as the given interface
+func (w *SwfWorkflow) As(a interface{}) error {
+    for i := range w.history {
+        if w.history[i].EventType == "WorkflowExecutionStarted" {
+            return w.marshaler.Unmarshal(w.history[i].WorkflowExecutionStartedEventAttributes.Input, a)
+        }
+    }
+    return errors.New("No Input found")
 }
 
 // Must be called for our decisions to be posted to the server
@@ -445,4 +480,156 @@ func (s* SwfWorkflow) Fail(reason, details string) {
             },
         },
     )
+}
+
+// continues this workflow as a new one, uses defaults for all settings.
+// 'a' will be marshalled to form the input
+func (s *SwfWorkflow) ContinueAsNewWorkflow(a interface{}) {
+    res, _ := s.marshaler.Marshal(a)
+    s.decisions = append(s.decisions,
+        swf.Decision{
+            DecisionType: "ContinueAsNewWorkflowExecution",
+            ContinueAsNewWorkflowExecutionDecisionAttributes: &swf.ContinueAsNewWorkflowExecutionDecisionAttributes{
+                ChildPolicy: "",
+                ExecutionStartToCloseTimeout: "",
+                Input: string(res),
+                TagList: nil,
+                TaskList: nil,
+                TaskStartToCloseTimeout: "",
+                WorkflowTypeVersion: "",
+            },
+        },
+    )
+}
+
+// Executes the given function once.
+// we record if this function has been executed or not my leaving a marker
+// in the decision history.
+func (s *SwfWorkflow) Once(what func()) {
+    markerName := fmt.Sprintf("awsgo.swfhelper.%d", s.nextOnceMarkerId)
+    s.nextOnceMarkerId++
+    for i := range s.history {
+        if s.history[i].EventType == "MarkerRecorded" {
+            if s.history[i].MarkerRecordedEventAttributes.MarkerName == markerName {
+                return
+            }
+        }
+    }
+    s.decisions = append(s.decisions,
+        swf.Decision{
+            DecisionType: "RecordMarker",
+            RecordMarkerDecisionAttributes: &swf.RecordMarkerDecisionAttributes{
+                Details: "",
+                MarkerName: markerName,
+            },
+        },
+    )
+    what()
+}
+
+
+// creates a marker of your choice with a raw string.
+// Do not use a name in the pattern of 'awsgo.swfhelper.%d' as we reserve the use of that format
+func (s *SwfWorkflow) MarkString(details, markerName string) {
+    for i := range s.history {
+        if s.history[i].EventType == "MarkerRecorded" {
+            if s.history[i].MarkerRecordedEventAttributes.MarkerName == markerName {
+                return
+            }
+        }
+    }
+    s.decisions = append(s.decisions,
+        swf.Decision{
+            DecisionType: "RecordMarker",
+            RecordMarkerDecisionAttributes: &swf.RecordMarkerDecisionAttributes{
+                Details: details,
+                MarkerName: markerName,
+            },
+        },
+    )
+}
+
+// creates a marker of your choice. Marshaling details with the marshaler.
+// Do not use a name in the pattern of 'awsgo.swfhelper.%d' as we reserve the use of that format
+func (s *SwfWorkflow) Mark(details interface{}, markerName string) {
+    for i := range s.history {
+        if s.history[i].EventType == "MarkerRecorded" {
+            if s.history[i].MarkerRecordedEventAttributes.MarkerName == markerName {
+                return
+            }
+        }
+    }
+    detailsStr, _ := s.marshaler.Marshal(details)
+    s.decisions = append(s.decisions,
+        swf.Decision{
+            DecisionType: "RecordMarker",
+            RecordMarkerDecisionAttributes: &swf.RecordMarkerDecisionAttributes{
+                Details: detailsStr,
+                MarkerName: markerName,
+            },
+        },
+    )
+}
+
+// stars a timer for the given duration
+func (s *SwfWorkflow) StartTimer(dur time.Duration) TimerResultChan {
+    timerId := fmt.Sprintf("timer.%d", s.nextTimerId)
+    s.nextTimerId ++
+
+    response := make(TimerResultChan)
+
+    wasStarted := false
+    for i := range s.history {
+        if s.history[i].EventType == "TimerStarted" {
+            if s.history[i].TimerStartedEventAttributes.TimerId == timerId {
+                wasStarted = true
+            }
+            continue
+        }
+        if s.history[i].EventType == "StartTimerFailed" {
+            go func () {
+                response <- TimerResult{
+                    timerId: timerId,
+                    FailureCause: "StartTimerFailed",
+                }
+                close(response)
+            }()
+            return response
+        }
+        if s.history[i].EventType == "TimerFired" {
+            go func () {
+                response <- TimerResult{
+                    timerId: timerId,
+                    FailureCause: "",
+                }
+                close(response)
+            }()
+            return response
+        }
+        if s.history[i].EventType == "TimerCanceled" {
+            go func () {
+                response <- TimerResult{
+                    timerId: timerId,
+                    FailureCause: "TimerCanceled",
+                }
+                close(response)
+            }()
+            return response
+        }
+    }
+    if !wasStarted {
+
+        s.decisions = append(s.decisions,
+            swf.Decision{
+                DecisionType: "StartTimer",
+                StartTimerDecisionAttributes: &swf.StartTimerDecisionAttributes{
+                    TimerId: timerId,
+                    StartToFireTimeout: fmt.Sprintf("%d", int64(dur.Seconds())),
+                },
+            },
+        )
+    }
+
+    close(response)
+    return response
 }

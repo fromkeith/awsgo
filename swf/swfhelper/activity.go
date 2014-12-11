@@ -180,7 +180,16 @@ func (a *ActivityWorker) handleActivityRequest(resp *swf.PollForActivityTaskResp
             act.heartbeatTime = nd
         }
         act.restartHeartbeat()
-        go h(&act)
+        go func () {
+            // catch any unexpected panics
+            defer func () {
+                rec := recover()
+                if rec != nil {
+                    act.Failed("Panic", fmt.Sprintf("%v", rec))
+                }
+            }()
+            h(&act)
+        }()
     }
 }
 
@@ -190,7 +199,6 @@ func (a *ActivityContext) restartHeartbeat() {
 }
 
 func (a *ActivityContext) heartbeat() {
-    defer a.restartHeartbeat()
 
     details := ""
     var ok bool
@@ -223,6 +231,7 @@ forloop:
             a.CancelRequested <- true
         }()
     }
+    a.restartHeartbeat()
 }
 
 
