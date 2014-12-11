@@ -50,11 +50,11 @@ const (
 type ReceiveMessageRequest struct {
     awsgo.RequestBuilder
 
-    AttributeName string
-    MaxNumberOfMessages int
-    VisibilityTimeout int
-    WaitTimeSeconds int
-    TaskQueue string
+    AttributeToGet              []string
+    MaxNumberOfMessages         int
+    VisibilityTimeout           int
+    WaitTimeSeconds             int
+    TaskQueue                   string
 }
 
 type SqsAttributes struct {
@@ -103,36 +103,28 @@ func (gir * ReceiveMessageRequest) VerifyInput() (error) {
     if len(gir.TaskQueue) == 0 {
         return errors.New("Task Queue cannot be empty")
     }
+    query := make(url.Values)
+    query.Add("Action", "ReceiveMessage")
+    query.Add("Version", "2012-11-05")
 
-    gir.CanonicalUri = fmt.Sprintf("%s?Action=%s&Version=%s",
-        gir.TaskQueue,
-        url.QueryEscape("ReceiveMessage"),
-        url.QueryEscape("2012-11-05"),
-    )
-    if gir.AttributeName != "" {
-        gir.CanonicalUri = fmt.Sprintf("%s&AttributeName=%s",
-            gir.CanonicalUri,
-            url.QueryEscape(gir.AttributeName),
-        )
+    for i := range gir.AttributeToGet {
+        query.Add(fmt.Sprintf("AttributeName.member.%d", i + 1), gir.AttributeToGet[i])
     }
+
     if gir.MaxNumberOfMessages != -1 {
-        gir.CanonicalUri = fmt.Sprintf("%s&MaxNumberOfMessages=%d",
-            gir.CanonicalUri,
-            gir.MaxNumberOfMessages,
-        )
+        query.Add("MaxNumberOfMessages", fmt.Sprintf("%d", gir.MaxNumberOfMessages))
     }
     if gir.VisibilityTimeout != -1 {
-        gir.CanonicalUri = fmt.Sprintf("%s&VisibilityTimeout=%d",
-            gir.CanonicalUri,
-            gir.VisibilityTimeout,
-        )
+        query.Add("VisibilityTimeout", fmt.Sprintf("%d", gir.VisibilityTimeout))
     }
     if gir.WaitTimeSeconds != -1 {
-        gir.CanonicalUri = fmt.Sprintf("%s&WaitTimeSeconds=%d",
-            gir.CanonicalUri,
-            gir.WaitTimeSeconds,
-        )
+        query.Add("WaitTimeSeconds", fmt.Sprintf("%d", gir.WaitTimeSeconds))
     }
+
+    gir.CanonicalUri = fmt.Sprintf("%s?%s",
+        gir.TaskQueue,
+        query.Encode(),
+    )
     return nil
 }
 

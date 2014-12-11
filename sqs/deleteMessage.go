@@ -54,7 +54,7 @@ func NewDeleteMessageRequest() *DeleteMessageRequest {
     req := new(DeleteMessageRequest)
     req.Host.Service = "sqs"
     req.Host.Region = ""
-    req.Host.Domain = ""
+    req.Host.Domain = "amazonaws.com"
     req.Key.AccessKeyId = ""
     req.Key.SecretAccessKey = ""
     req.Headers = make(map[string]string)
