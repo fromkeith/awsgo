@@ -100,7 +100,7 @@ type RequestBuilderInterface interface {
     // verify the request before we send it
     VerifyInput() error
     // Get the underlying RequestBuilder in the struct
-    GetRequestBuilder() RequestBuilder
+    GetRequestBuilder() *RequestBuilder
     // Unmarshal the response
     DeMarshalResponse(response []byte, headers map[string]string, statusCode int) (interface{})
 }
@@ -121,14 +121,22 @@ type AwsRequest struct {
     payloadHash []byte
 }
 
-func (r RequestBuilder) GetRequestBuilder() RequestBuilder {
+func (r *RequestBuilder) GetRequestBuilder() *RequestBuilder {
     return r
 }
 
 // verify the RequestBuilder base has what is required.
-func verifyInput(r RequestBuilder) (error) {
+func verifyInput(r *RequestBuilder) (error) {
     if len(r.Host.Domain) == 0 {
         r.Host.Domain = "amazonaws.com"
+    }
+    // if we haven't set the keys, try getting the default ones...
+    if r.Key.AccessKeyId == "" {
+        var err error
+        r.Key, err = GetSecurityKeys()
+        if err != nil {
+            return err
+        }
     }
     if len(r.Key.AccessKeyId) == 0 {
         return Verification_Error_AccessKeyEmpty
@@ -141,7 +149,7 @@ func verifyInput(r RequestBuilder) (error) {
 
 // Start creating the request.
 // Take the base information, and the data we are going to transport.
-func createAwsRequest(rb RequestBuilder, marsh interface{}) (request AwsRequest) {
+func createAwsRequest(rb *RequestBuilder, marsh interface{}) (request AwsRequest) {
     request.Host = rb.Host
     request.Key = rb.Key
     request.Headers = rb.Headers
