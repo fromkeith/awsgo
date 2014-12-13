@@ -83,7 +83,7 @@ func NewSendEmailRequest() *SendEmailRequest {
     req := new(SendEmailRequest)
     req.Host.Service = "ses"
     req.Host.Region = ""
-    req.Host.Domain = ""
+    req.Host.Domain = "amazonaws.com"
     req.Key.AccessKeyId = ""
     req.Key.SecretAccessKey = ""
     req.Headers = make(map[string]string)
