@@ -51,6 +51,7 @@ type ReceiveMessageRequest struct {
     awsgo.RequestBuilder
 
     AttributeToGet              []string
+    MessageAttributesToGet      []string
     MaxNumberOfMessages         int
     VisibilityTimeout           int
     WaitTimeSeconds             int
@@ -107,8 +108,15 @@ func (gir * ReceiveMessageRequest) VerifyInput() (error) {
     query.Add("Action", "ReceiveMessage")
     query.Add("Version", "2012-11-05")
 
-    for i := range gir.AttributeToGet {
-        query.Add(fmt.Sprintf("AttributeName.member.%d", i + 1), gir.AttributeToGet[i])
+    if len(gir.AttributeToGet) == 1 {
+        query.Add("AttributeName", gir.AttributeToGet[0])
+    } else {
+        for i := range gir.AttributeToGet {
+            query.Add(fmt.Sprintf("AttributeName.member.%d", i + 1), gir.AttributeToGet[i])
+        }
+    }
+    for i := range gir.MessageAttributesToGet {
+        query.Add(fmt.Sprintf("MessageAttributeName.member.%d", i + 1), gir.MessageAttributesToGet[i])
     }
 
     if gir.MaxNumberOfMessages != -1 {
