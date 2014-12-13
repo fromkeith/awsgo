@@ -243,6 +243,19 @@ func (a *ActivityContext) recycle() {
     }
 }
 
+// called if you want to stop processing an activity, and stop its heartbeat
+// but don't want to respond with a result to this activity.
+// you may want to do this if the activity requires human intervention, and
+// you don't want to consume resources waiting for that interaction.
+func (a *ActivityContext) CloseWithoutResult() {
+    a.heartbeatTimer.Stop()
+    a.recycle()
+}
+
+func (a * ActivityContext) GetRawTask() *swf.PollForActivityTaskResponse {
+    return a.pollTask
+}
+
 
 // mark this activity as succesfully completed
 func (a *ActivityContext) Completed(result interface{}) {
