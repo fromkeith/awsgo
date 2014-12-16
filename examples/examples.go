@@ -30,21 +30,22 @@
 package main
 
 import (
+    "bytes"
+    "crypto/md5"
     "fmt"
     "github.com/fromkeith/awsgo"
+    "github.com/fromkeith/awsgo/cloudwatch"
     "github.com/fromkeith/awsgo/dynamo"
     "github.com/fromkeith/awsgo/ec2"
     "github.com/fromkeith/awsgo/s3"
-    "github.com/fromkeith/awsgo/sqs"
     "github.com/fromkeith/awsgo/ses"
-    "github.com/fromkeith/awsgo/cloudwatch"
+    "github.com/fromkeith/awsgo/sns"
+    "github.com/fromkeith/awsgo/sqs"
     "github.com/fromkeith/awsgo/swf"
     "io/ioutil"
-    "bytes"
-    "crypto/md5"
-    "time"
-    "math/rand"
     "log"
+    "math/rand"
+    "time"
 )
 
 const (
@@ -538,6 +539,17 @@ func pollForDecisionTask() {
     log.Println("Resp: ", r)
 }
 
+func postSnsMessage() {
+    pub := sns.NewPublishRequest()
+    pub.Host.Region = "us-west-2"
+    pub.TopicArn = ""
+    pub.Message = "Wasssssssuppppp"
+    pub.Subject = "Howdy me!"
+    resp, err := pub.Request()
+    log.Println("Err: ", err)
+    log.Println("Resp: ", resp)
+}
+
 func main() {
     //TestGetMetricStatistics()
     //TestCreateLogGroup()
@@ -558,5 +570,7 @@ func main() {
     //TestPutMetric()
     //TestDescribeInstance()
 
-    pollForDecisionTask()
+    //pollForDecisionTask()
+
+    postSnsMessage()
 }

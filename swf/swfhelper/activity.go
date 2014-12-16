@@ -185,6 +185,12 @@ func (a *ActivityWorker) handleActivityRequest(resp *swf.PollForActivityTaskResp
             defer func () {
                 rec := recover()
                 if rec != nil {
+                    defer func () {
+                        rec2 := recover()
+                        if rec2 != nil {
+                            log.Println("Panic trying to fail activity", rec2)
+                        }
+                    }()
                     act.Failed("Panic", fmt.Sprintf("%v", rec))
                 }
             }()

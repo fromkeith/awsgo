@@ -46,10 +46,10 @@ type ScanRequest struct {
     Limit                   float64     `json:",omitempty"`
     ReturnConsumedCapacity  string      `json:",omitempty"`
     ScanFilter              map[string]KeyConditions `json:",omitempty"`
-    Segment                 float64     `json:",omitempty"`
+    Segment                 *int         `json:",omitempty"`
     Select                  string      `json:",omitempty"`
     TableName               string
-    TotalSegments           float64     `json:",omitempty"`
+    TotalSegments           *int         `json:",omitempty"`
 }
 
 type ScanResponse struct {
