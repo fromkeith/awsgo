@@ -157,6 +157,7 @@ func (q * QueryResponse) Next(lastRequest *QueryRequest) (*QueryResponse, error)
     req.Select = lastRequest.Select
     req.TableName = lastRequest.TableName
     req.Limit = lastRequest.Limit
+    req.HttpClient = lastRequest.HttpClient
     // std attributes
     req.Host.Region = lastRequest.Host.Region
     req.Key = lastRequest.Key

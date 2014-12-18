@@ -185,6 +185,7 @@ func (resp *BatchGetItemResponse) Next(lastRequest *BatchGetItemRequest) (*Batch
     req.RequestItems = resp.UnprocessedKeys
     req.ReturnConsumedCapacity = lastRequest.ReturnConsumedCapacity
     // std attributes
+    req.HttpClient = lastRequest.HttpClient
     req.Host.Region = lastRequest.Host.Region
     req.Key = lastRequest.Key
     return req.Request()

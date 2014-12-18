@@ -159,6 +159,7 @@ func (q * ScanResponse) Next(lastRequest *ScanRequest) (*ScanResponse, error) {
     // std attributes
     req.Host.Region = lastRequest.Host.Region
     req.Key = lastRequest.Key
+    req.HttpClient = lastRequest.HttpClient
     // set our exclusive key
     req.ExclusiveStartKey = q.LastEvaluatedKey
     return req.Request()
