@@ -28,21 +28,25 @@ Godoc: http://godoc.org/github.com/fromkeith/awsgo/dynamo
 * Batch Get Item
 * Batch Write Item
 * Delete Item
+* Describe Table
 * Get Item
 * Put Item
 * Query
 * Scan
 * Update Item
+* Update Table
 
 ### S3
-* Put Object
 * Get Object
+* Head Object
+* Put Object
 
 ### SES
 * Send Email
 * Some helpers for dealing with the SNS notifications
 
 ### SQS
+* Batch Send Message
 * Change Message Visibility
 * Delete Message
 * Receive Message
@@ -55,6 +59,21 @@ Godoc: http://godoc.org/github.com/fromkeith/awsgo/dynamo
 ### EC2
 * Describe Instances
 * Get Instance Metadata
+
+### SNS
+* Publish
+
+## SWF
+* Poll For Activity Task
+* Poll For Decision Task
+* Record Activity Task Heartbeat
+* Respond Activity Task Canceled
+* Respond Activity Task Completed
+* Respond Activity Task Failed
+* Respond Decision Task Completed
+* Start Workflow Execution
+* A custom workflow execution helper, to make the incrmental decision process easier. See swf/swfhelper
+
 
 ## Depends on
     github.com/pmylund/sortutil

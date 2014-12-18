@@ -42,6 +42,8 @@ import (
 
 func main() {
 
+    // this creates the decider manager/poller
+    // it will poll the specified region, domain and task list to get decision tasks
     decider := &swfhelper.Decider{
         Region: "us-west-2",
         Domain: "yewwdev",
@@ -49,6 +51,8 @@ func main() {
         Identity: "atHome1",
         MaxWorkers: 1,
     }
+    // We must register a function to a workflow. Any decision tasks that come in,
+    // and match this type, and version will be handled by the 'BasicDecider' function
     decider.RegisterWorkflow(swf.WorkflowType{Name:"hello", Version:"1"}, BasicDecider)
     go decider.Start()
 
