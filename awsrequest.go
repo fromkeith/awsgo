@@ -63,7 +63,7 @@ const (
 
 
 var (
-    requestClient       *http.Client
+    defaultRequestClient       *http.Client = http.DefaultClient
     firstRequestCreate  sync.Mutex
 )
 
@@ -91,6 +91,9 @@ type RequestBuilder struct {
     RequestMethod string            `json:"-"`
     // The uri we are hitting.
     CanonicalUri string             `json:"-"`
+    // The http client to use. A default one will be used if not specified
+    HttpClient      *http.Client         `json:"-"`
+
 }
 
 
@@ -115,6 +118,7 @@ type AwsRequest struct {
     RequestMethod string
     CanonicalUri string
     RequestSigningType int
+    HttpClient  *http.Client
     // generated
     signature string
     scope string
@@ -155,6 +159,7 @@ func createAwsRequest(rb *RequestBuilder, marsh interface{}) (request AwsRequest
     request.Headers = rb.Headers
     request.RequestMethod = rb.RequestMethod
     request.CanonicalUri = rb.CanonicalUri
+    request.HttpClient = rb.HttpClient
     request.Date = time.Now()
     if r, ok := marsh.(io.ReadCloser); ok {
         request.PayloadReader = r
@@ -269,7 +274,10 @@ func (req AwsRequest) Do() (io.ReadCloser, map[string]string, int, error) {
         Header: reqHeaders,
     }
 
-    httpClient := addCustomCertsAndCreateClient(req)
+    httpClient := req.HttpClient
+    if httpClient == nil {
+        httpClient = defaultRequestClient
+    }
 
     if val, ok := req.Headers["Content-Length"]; ok {
         hreq.ContentLength, _ = strconv.ParseInt(val, 10, 64)
@@ -335,21 +343,18 @@ func (req AwsRequest) Do() (io.ReadCloser, map[string]string, int, error) {
     return resp.Body, responseHeaders, resp.StatusCode, nil
 }
 
-func addCustomCertsAndCreateClient(req AwsRequest) (http.Client) {
-    if requestClient != nil {
-        return *requestClient
-    }
-    firstRequestCreate.Lock()
-    defer firstRequestCreate.Unlock()
-    if requestClient != nil {
-        return *requestClient
-    }
+func SetDefaultHttpClient(client *http.Client) {
+    defaultRequestClient = client
+}
+
+// helper function to create a http client that accepts certain certs
+func CreateCertApprovedClient(certsToAdd []*x509.Certificate) (*http.Client) {
     // add in any custom certs they want us to use
     var rootCA *x509.CertPool
-    if len(req.Host.CustomCertificates) > 0 {
+    if len(certsToAdd) > 0 {
         rootCA = x509.NewCertPool()
-        for i := range req.Host.CustomCertificates {
-            rootCA.AddCert(req.Host.CustomCertificates[i])
+        for i := range certsToAdd {
+            rootCA.AddCert(certsToAdd[i])
         }
     }
     tr := &http.Transport{
@@ -358,8 +363,8 @@ func addCustomCertsAndCreateClient(req AwsRequest) (http.Client) {
         },
         DisableKeepAlives: true,
     }
-    requestClient = &http.Client{Transport: tr}
-    return *requestClient
+    requestClient := &http.Client{Transport: tr}
+    return requestClient
 }
 
 func getUrl(req AwsRequest) (*url.URL, error) {

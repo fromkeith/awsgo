@@ -56,7 +56,7 @@ func doGetItemTest(req *GetItemRequest, handler http.HandlerFunc) (*GetItemRespo
     req.Host.Service = "127"
     req.Key.AccessKeyId = "akey"
     req.Key.SecretAccessKey = "skey"
-    req.Host.CustomCertificates = []*x509.Certificate{certAsx509}
+    req.HttpClient = awsgo.CreateCertApprovedClient([]*x509.Certificate{certAsx509})
 
     resp, err := req.Request()
     return resp, err
@@ -64,15 +64,15 @@ func doGetItemTest(req *GetItemRequest, handler http.HandlerFunc) (*GetItemRespo
 
 func verifySimpleRequestBody(t * testing.T, r * http.Request) {
     expectedBody := `
-        {"ConsistentRead":"false","Key":{"blah":{"S":"asdf"}},"TableName":"asd","ReturnConsumedCapacity":"NONE"}
+        {"ConsistentRead":false,"Key":{"blah":{"S":"asdf"}},"TableName":"asd","ReturnConsumedCapacity":"NONE"}
     `
     defer r.Body.Close()
     body, err := ioutil.ReadAll(r.Body)
     if err != nil {
-        t.Fatal("couldn't read content! error: %v", err)
+        t.Fatalf("couldn't read content! error: %v", err)
     }
     if string(body) != strings.TrimSpace(expectedBody) {
-        t.Fatal("Expected request body: '%s'. Got: '%s'", strings.TrimSpace(expectedBody), string(body))
+        t.Fatalf("Expected request body: '%s'. Got: '%s'", strings.TrimSpace(expectedBody), string(body))
     }
 }
 
@@ -301,7 +301,7 @@ func Test_MissingRegion(t * testing.T) {
     itemReq.Host.Service = "127"
     itemReq.Key.AccessKeyId = "akey"
     itemReq.Key.SecretAccessKey = "skey"
-    itemReq.Host.CustomCertificates = []*x509.Certificate{certAsx509}
+    itemReq.HttpClient = awsgo.CreateCertApprovedClient([]*x509.Certificate{certAsx509})
 
     resp, err := itemReq.Request()
 
@@ -331,7 +331,7 @@ func Test_MissingService(t * testing.T) {
     itemReq.Host.Service = "" // test is to set this to empty.
     itemReq.Key.AccessKeyId = "akey"
     itemReq.Key.SecretAccessKey = "skey"
-    itemReq.Host.CustomCertificates = []*x509.Certificate{certAsx509}
+    itemReq.HttpClient = awsgo.CreateCertApprovedClient([]*x509.Certificate{certAsx509})
 
     resp, err := itemReq.Request()
 
@@ -343,35 +343,6 @@ func Test_MissingService(t * testing.T) {
     }
 }
 
-func Test_MissingAccessKey(t * testing.T) {
-    handler := http.HandlerFunc(func (w http.ResponseWriter, r * http.Request) {
-        t.Fatal("Never should have made it to request stage")
-    })
-
-    itemReq := NewGetItemRequest()
-    itemReq.TableName = "asd"
-    itemReq.Search["asd"] = "asd"
-
-    ts := httptest.NewTLSServer(handler)
-    defer ts.Close()
-    certAsx509, _ := x509.ParseCertificate(ts.TLS.Certificates[0].Certificate[0])
-
-    itemReq.Host.Domain = strings.TrimPrefix(ts.URL, "https://127.0.")
-    itemReq.Host.Region = "0"
-    itemReq.Host.Service = "127"
-    //itemReq.Key.AccessKeyId = "akey" // test is to have this empty
-    itemReq.Key.SecretAccessKey = "skey"
-    itemReq.Host.CustomCertificates = []*x509.Certificate{certAsx509}
-
-    resp, err := itemReq.Request()
-
-    if err == nil {
-        t.Fatalf("Error should not be nil. Got response: %v", resp)
-    }
-    if err != awsgo.Verification_Error_AccessKeyEmpty {
-        t.Fatalf("Got wrong error. Expected: %v.. got: %v", awsgo.Verification_Error_AccessKeyEmpty, err)
-    }
-}
 
 func Test_MissingSecretAccessKey(t * testing.T) {
     handler := http.HandlerFunc(func (w http.ResponseWriter, r * http.Request) {
@@ -391,7 +362,7 @@ func Test_MissingSecretAccessKey(t * testing.T) {
     itemReq.Host.Service = "127"
     itemReq.Key.AccessKeyId = "akey"
     //itemReq.Key.SecretAccessKey = "skey" // test is to have this empty
-    itemReq.Host.CustomCertificates = []*x509.Certificate{certAsx509}
+    itemReq.HttpClient = awsgo.CreateCertApprovedClient([]*x509.Certificate{certAsx509})
 
     resp, err := itemReq.Request()
 
@@ -446,7 +417,7 @@ func Test_EmtpyReturnSet(t * testing.T) {
 
 func Test_ConsumedCapacityDemarshal(t * testing.T) {
     expectedBody := `
-        {"ConsistentRead":"false","Key":{"blah":{"S":"asdf"}},"TableName":"asd","ReturnConsumedCapacity":"TOTAL"}
+        {"ConsistentRead":false,"Key":{"blah":{"S":"asdf"}},"TableName":"asd","ReturnConsumedCapacity":"TOTAL"}
     `
 
     expectedCapacityUnits := float64(0.5)
@@ -546,7 +517,7 @@ func Test_ConsumedCapacityDemarshal(t * testing.T) {
 func Test_BadConsumedCapacityString(t * testing.T) {
     handler := http.HandlerFunc(func (w http.ResponseWriter, r * http.Request) {
         expectedBody := `
-            {"ConsistentRead":"false","Key":{"blah":{"S":"asdf"}},"TableName":"asd","ReturnConsumedCapacity":"invalidField"}
+            {"ConsistentRead":false,"Key":{"blah":{"S":"asdf"}},"TableName":"asd","ReturnConsumedCapacity":"invalidField"}
         `
         defer r.Body.Close()
         body, err := ioutil.ReadAll(r.Body)

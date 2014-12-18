@@ -39,7 +39,7 @@ import (
     "io/ioutil"
     "strings"
     "crypto/x509"
-    //"github.com/fromkeith/awsgo"
+    "github.com/fromkeith/awsgo"
     "encoding/json"
     "bytes"
 )
@@ -55,7 +55,7 @@ func doDeleteItemTest(req *DeleteItemRequest, handler http.HandlerFunc) (*Delete
     req.Host.Service = "127"
     req.Key.AccessKeyId = "akey"
     req.Key.SecretAccessKey = "skey"
-    req.Host.CustomCertificates = []*x509.Certificate{certAsx509}
+    req.HttpClient = awsgo.CreateCertApprovedClient([]*x509.Certificate{certAsx509})
 
     resp, err := req.Request()
     return resp, err

@@ -34,7 +34,6 @@ import (
     "bytes"
     "crypto/sha1"
     "crypto/sha256"
-    "crypto/x509"
     "fmt"
     "hash"
     "io/ioutil"
@@ -62,9 +61,6 @@ type AwsHost struct {
     Domain string
     // Overrides the url actuall hit
     Override string
-    // If you want to hit your own custom test service.
-    // Generally leave nil to use go's default cert chain.
-    CustomCertificates []*x509.Certificate
 }
 
 // concat the parts together into a hostname.

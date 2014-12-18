@@ -249,8 +249,7 @@ func (gir BatchWriteItemRequest) deepCopyRequestBuilder(headerCopy map[string]st
     theCopy.Host.Region = gir.Host.Region
     theCopy.Host.Domain = gir.Host.Domain
     theCopy.Host.Override = gir.Host.Override
-    // ignore the cert for now
-    // theCopy.Host.CustomCertificates
+    theCopy.HttpClient = gir.HttpClient
 
     theCopy.Key = gir.Key
     theCopy.Headers = make(map[string]string)
