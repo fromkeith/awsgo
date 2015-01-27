@@ -101,9 +101,11 @@ type TaskResult struct {
 	//      ActivityTaskTimedOut
 	//          FailureCause: 'details' last provided by a heartbeat
 	//      ActivityTaskFailed
-	//          FailureCause: 'details' provided in the failure if any. For now we don't return 'reason'
+	//          FailureCause: 'details' provided in the failure if any.
 	FailureType  string
 	FailureCause string
+	// only appears for failuire type 'ActivityTaskFailed'
+	FailureReason string
 
 	marshaler Marshaler
 }
@@ -224,6 +226,7 @@ func (s *SwfWorkflow) GoWithCustomId(do Task, data interface{}, thisId string) T
 						activityId:   thisId,
 						FailureType:  "ActivityTaskFailed",
 						FailureCause: s.history[i].ActivityTaskFailedEventAttributes.Details,
+						FailureReason: s.history[i].ActivityTaskFailedEventAttributes.Reason,
 					}
 					close(response)
 				}()

@@ -37,6 +37,10 @@ import (
     "time"
 )
 
+var (
+    BACKOFF_EXCEEDED = errors.New("Backoff exceeded. Giving up.")
+)
+
 type BatchWriteItemDeleteRequest struct {
     Key         map[string]interface{}
 }
@@ -211,7 +215,7 @@ func (gir BatchWriteItemRequest) Request() (*BatchWriteItemResponse, error) {
 }
 
 // makes the request, and tries to include the unprocessed request items in subsequent requests
-func (gir BatchWriteItemRequest) RequestIncludingUnprocessed() (*BatchWriteItemResponse, error) {
+func (gir BatchWriteItemRequest) RequestIncludingUnprocessed(sleep time.Duration) (*BatchWriteItemResponse, error) {
     headerCopy := make(map[string]string)
     for k, v := range gir.Headers {
         headerCopy[k] = v
@@ -224,11 +228,12 @@ func (gir BatchWriteItemRequest) RequestIncludingUnprocessed() (*BatchWriteItemR
     lastSize := len(resp.UnprocessedItems)
     for backOff := 0; len(resp.UnprocessedItems) > 0; {
         if lastSize == len(resp.UnprocessedItems) {
+            time.Sleep(sleep)
             backOff ++
         }
         lastSize = len(resp.UnprocessedItems)
         if backOff > 5 {
-            return resp, errors.New("Backoff exceeded. Giving up.")
+            return resp, BACKOFF_EXCEEDED
         }
         time.Sleep(time.Duration(backOff * 100))
 
@@ -292,7 +297,7 @@ func (gir BatchWriteItemRequest) RequestSplit(sleep time.Duration) ([]*BatchWrit
             }
             itemsInSet ++
             if itemsInSet >= 25 {
-                resp, err := curSubRequest.RequestIncludingUnprocessed()
+                resp, err := curSubRequest.RequestIncludingUnprocessed(sleep)
                 if err != nil {
                     return responses, err
                 }
@@ -314,7 +319,7 @@ func (gir BatchWriteItemRequest) RequestSplit(sleep time.Duration) ([]*BatchWrit
         }
     }
     if curSubRequest != nil {
-        resp, err := curSubRequest.RequestIncludingUnprocessed()
+        resp, err := curSubRequest.RequestIncludingUnprocessed(sleep)
         if err != nil {
             return responses, err
         }

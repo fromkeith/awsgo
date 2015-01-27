@@ -42,6 +42,7 @@ import (
     "log"
     "runtime/debug"
     "time"
+    "encoding/base64"
 )
 
 
@@ -191,7 +192,7 @@ func (a *ActivityWorker) handleActivityRequest(resp *swf.PollForActivityTaskResp
                             log.Println("Panic trying to fail activity", rec2)
                         }
                     }()
-                    act.Failed("Panic", fmt.Sprintf("%v", rec))
+                    act.Failed("Panic", fmt.Sprintf("%v. Base64 Stack: %s", rec, base64.StdEncoding.EncodeToString(debug.Stack())))
                 }
             }()
             h(&act)
