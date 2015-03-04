@@ -93,6 +93,9 @@ func (gir SendMessageRequest) DeMarshalResponse(response []byte, headers map[str
     if err := awsgo.CheckForErrorXml(response); err != nil {
         return err
     }
+    if statusCode < 200 || statusCode >= 300 {
+        return errors.New(fmt.Sprintf("Bad Status code: %d", statusCode))
+    }
     giResponse := new(SendMessageResponse)
     //fmt.Println(string(response))
     err := xml.Unmarshal(response, giResponse)
