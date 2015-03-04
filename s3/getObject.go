@@ -45,6 +45,7 @@ type GetObjectRequest struct {
     IfUnmodifiedSince   string
     IfMatch             string
     IfNoneMatch         string
+    VersionId           string
 
     // the file
     Path                string
@@ -117,7 +118,9 @@ func (gi * GetObjectRequest) VerifyInput() (error) {
     if gi.IfNoneMatch != "" {
         gi.Headers["If-None-Match"] = gi.IfNoneMatch
     }
-    
+    if gi.VersionId != "" {
+        gi.Headers["x-amz-version-id"] = gi.VersionId
+    }
     gi.CanonicalUri = fmt.Sprintf("/%s", gi.Path)
     return nil
 }
