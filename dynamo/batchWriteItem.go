@@ -235,7 +235,7 @@ func (gir BatchWriteItemRequest) RequestIncludingUnprocessed(sleep time.Duration
         if backOff > 5 {
             return resp, BACKOFF_EXCEEDED
         }
-        time.Sleep(time.Duration(backOff * 100))
+        time.Sleep(time.Duration(backOff * 100) * time.Millisecond)
 
         retryRequest := NewBatchWriteItemRequest()
         retryRequest.RequestBuilder = gir.deepCopyRequestBuilder(headerCopy)
