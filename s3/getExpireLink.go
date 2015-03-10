@@ -42,11 +42,14 @@ import (
 
 // Generates an expirable link to an s3 object
 // Generated link will be: "//s3.amazonaws.com/{bucket}/{path}?{queryargs}"
-func GenerateExpirableLink(bucket, path string, expires time.Time, creds awsgo.Credentials) string {
+func GenerateExpirableLinkVersion(bucket, path string, expires time.Time, creds awsgo.Credentials, version string) string {
     var header string
 
     if creds.GetToken() != "" {
         header = fmt.Sprintf("x-amz-security-token:%s\n", creds.GetToken())
+    }
+    if version != "" {
+        header = fmt.Sprintf("%sx-amz-version-id:%s\n", header, version)
     }
 
     toSign := fmt.Sprintf(
@@ -67,6 +70,9 @@ func GenerateExpirableLink(bucket, path string, expires time.Time, creds awsgo.C
     if creds.GetToken() != "" {
         v.Add("x-amz-security-token", creds.GetToken())
     }
+    if version != "" {
+        v.Add("x-amz-version-id", version)
+    }
 
     return fmt.Sprintf(
         "//s3.amazonaws.com/%s/%s?%s",
@@ -74,5 +80,11 @@ func GenerateExpirableLink(bucket, path string, expires time.Time, creds awsgo.C
         path,
         v.Encode(),
     )
+}
+
+// Generates an expirable link to an s3 object
+// Generated link will be: "//s3.amazonaws.com/{bucket}/{path}?{queryargs}"
+func GenerateExpirableLink(bucket, path string, expires time.Time, creds awsgo.Credentials) string {
+    return GenerateExpirableLinkVersion(bucket, path, expires, creds, "")
 }
 
