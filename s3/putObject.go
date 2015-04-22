@@ -108,9 +108,6 @@ func (por PutObjectRequest) DeMarshalResponse(a []byte, headers map[string]strin
 
 func (por * PutObjectRequest) VerifyInput() (error) {
     por.Host.Service = "s3"
-    if por.Length == 0 {
-        return errors.New("Length cannot be 0")
-    }
     if len(por.ContentType) == 0 {
         return errors.New("ContentType be empty")
     }
