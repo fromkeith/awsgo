@@ -584,6 +584,8 @@ func (s *SwfWorkflow) StartTimer(dur time.Duration) TimerResultChan {
 	timerId := fmt.Sprintf("timer.%d", s.nextTimerId)
 	s.nextTimerId++
 
+
+
 	response := make(TimerResultChan)
 
 	wasStarted := false
@@ -595,34 +597,43 @@ func (s *SwfWorkflow) StartTimer(dur time.Duration) TimerResultChan {
 			continue
 		}
 		if s.history[i].EventType == "StartTimerFailed" {
-			go func() {
-				response <- TimerResult{
-					timerId:      timerId,
-					FailureCause: "StartTimerFailed",
-				}
-				close(response)
-			}()
-			return response
+			if s.history[i].StartTimerFailedEventAttributes.TimerId == timerId {
+				go func() {
+					response <- TimerResult{
+						timerId:      timerId,
+						FailureCause: "StartTimerFailed",
+					}
+					close(response)
+				}()
+				return response
+			}
+			continue
 		}
 		if s.history[i].EventType == "TimerFired" {
-			go func() {
-				response <- TimerResult{
-					timerId:      timerId,
-					FailureCause: "",
-				}
-				close(response)
-			}()
-			return response
+			if s.history[i].TimerFiredEventAttributes.TimerId == timerId {
+				go func() {
+					response <- TimerResult{
+						timerId:      timerId,
+						FailureCause: "",
+					}
+					close(response)
+				}()
+				return response
+			}
+			continue
 		}
 		if s.history[i].EventType == "TimerCanceled" {
-			go func() {
-				response <- TimerResult{
-					timerId:      timerId,
-					FailureCause: "TimerCanceled",
-				}
-				close(response)
-			}()
-			return response
+			if s.history[i].TimerCanceledEventAttributes.TimerId == timerId {
+				go func() {
+					response <- TimerResult{
+						timerId:      timerId,
+						FailureCause: "TimerCanceled",
+					}
+					close(response)
+				}()
+				return response
+			}
+			continue
 		}
 	}
 	if !wasStarted {
