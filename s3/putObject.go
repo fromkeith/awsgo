@@ -108,6 +108,10 @@ func (por PutObjectRequest) DeMarshalResponse(a []byte, headers map[string]strin
 
 func (por * PutObjectRequest) VerifyInput() (error) {
     por.Host.Service = "s3"
+    if por.Host.Region != "" {
+        por.Host.Service = "s3-" + por.Host.Region
+        por.Host.Region = ""
+    }
     if len(por.ContentType) == 0 {
         return errors.New("ContentType be empty")
     }
